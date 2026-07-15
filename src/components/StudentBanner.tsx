@@ -10,26 +10,29 @@ export default function StudentBanner({
   photo: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-2.5 border-l-4 border-rose-700 pl-2.5">
+    <div className="flex min-w-0 items-center gap-2 border-l-4 border-rose-700 pl-2">
       {photo ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={photo}
           alt=""
-          className="h-10 w-10 rounded-full border border-gray-200 object-cover"
+          className="h-8 w-8 shrink-0 rounded-full border border-gray-200 object-cover"
         />
       ) : (
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-400">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-400">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4 0-7 2-7 4.5V20h14v-1.5C19 16 16 14 12 14z" />
           </svg>
         </span>
       )}
-      <div className="min-w-0">
-        <p className="truncate text-base font-bold leading-tight tracking-wide text-gray-800">
+      {/* Id/name text only where there's room to spare; avatar alone on phones. */}
+      <div className="hidden min-w-0 max-w-28 sm:block md:max-w-none">
+        <p className="truncate text-sm font-bold leading-tight tracking-wide text-gray-800">
           {studentId}
         </p>
-        <p className="truncate text-xs font-medium uppercase text-gray-600">{nameEn}</p>
+        <p className="hidden truncate text-xs font-medium uppercase text-gray-600 md:block">
+          {nameEn}
+        </p>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import LogoutButton from "./LogoutButton";
 import StudentBanner from "./StudentBanner";
 
 const NAV = [
-  { href: "/dashboard", label: "Study Plan" },
+  { href: "/dashboard", label: "Study Info" },
   { href: "/dashboard/plan", label: "My Plan" },
   { href: "/dashboard/registration", label: "Registration Result" },
 ];
@@ -22,24 +22,13 @@ export default function DashboardHeader({ student }: { student: HeaderStudent })
 
   return (
     <header className="sticky top-0 z-20 border-b border-gray-200 bg-white">
-      <div className="mx-auto max-w-5xl px-4 pt-3 sm:px-6">
-        {/* Text logo on the left, profile + sign-out on the right */}
-        <div className="flex items-center justify-between gap-3">
-          <span className="shrink-0 text-lg font-black uppercase leading-none tracking-tight text-gray-900">
-            Study Plan
-          </span>
-          <div className="flex min-w-0 items-center gap-3">
-            <StudentBanner
-              studentId={student.studentId}
-              nameEn={student.nameEn}
-              photo={student.photo}
-            />
-            <LogoutButton />
-          </div>
-        </div>
+      <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-2.5 sm:px-6">
+        {/* Logo, tabs, and profile all on one row */}
+        <span className="shrink-0 text-lg font-black uppercase leading-none tracking-tight text-gray-900">
+          Study Plan
+        </span>
 
-        {/* Tabs underneath */}
-        <nav className="-mx-1 mt-2 flex items-center gap-1 overflow-x-auto px-1 pb-2">
+        <nav className="-mx-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-1">
           {NAV.map((item) => {
             // Prefix match keeps "My Plan" lit on its /builder subpage.
             const active =
@@ -51,7 +40,7 @@ export default function DashboardHeader({ student }: { student: HeaderStudent })
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`whitespace-nowrap rounded-md px-2 py-1.5 text-sm font-medium transition-colors sm:px-3 ${
                   active ? "bg-blue-50 text-blue-700" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                 }`}
               >
@@ -60,6 +49,15 @@ export default function DashboardHeader({ student }: { student: HeaderStudent })
             );
           })}
         </nav>
+
+        <div className="flex shrink-0 items-center gap-3">
+          <StudentBanner
+            studentId={student.studentId}
+            nameEn={student.nameEn}
+            photo={student.photo}
+          />
+          <LogoutButton />
+        </div>
       </div>
     </header>
   );
