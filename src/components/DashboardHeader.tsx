@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import LogoutButton from "./LogoutButton";
+import StudentBanner from "./StudentBanner";
 
 const NAV = [
   { href: "/dashboard", label: "Study Plan" },
@@ -10,20 +11,35 @@ const NAV = [
   { href: "/dashboard/registration", label: "Registration Result" },
 ];
 
-export default function DashboardHeader({ username }: { username: string }) {
+export interface HeaderStudent {
+  studentId: string;
+  nameEn: string;
+  photo: string;
+}
+
+export default function DashboardHeader({ student }: { student: HeaderStudent }) {
   const pathname = usePathname();
 
   return (
     <header className="sticky top-0 z-20 border-b border-gray-200 bg-white">
       <div className="mx-auto max-w-5xl px-4 pt-3 sm:px-6">
+        {/* Text logo on the left, profile + sign-out on the right */}
         <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-baseline gap-2">
-            <span className="whitespace-nowrap text-lg font-semibold text-gray-900">MK Study Plan</span>
-            <span className="truncate text-sm text-gray-400">/ {username}</span>
+          <span className="shrink-0 text-lg font-black uppercase leading-none tracking-tight text-gray-900">
+            Study Plan
+          </span>
+          <div className="flex min-w-0 items-center gap-3">
+            <StudentBanner
+              studentId={student.studentId}
+              nameEn={student.nameEn}
+              photo={student.photo}
+            />
+            <LogoutButton />
           </div>
-          <LogoutButton />
         </div>
-        <nav className="-mx-1 mt-1 flex items-center gap-1 overflow-x-auto px-1 pb-2">
+
+        {/* Tabs underneath */}
+        <nav className="-mx-1 mt-2 flex items-center gap-1 overflow-x-auto px-1 pb-2">
           {NAV.map((item) => {
             // Prefix match keeps "My Plan" lit on its /builder subpage.
             const active =

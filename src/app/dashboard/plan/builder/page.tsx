@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/serverAuth";
+import { getStudentByUsername } from "@/lib/planQueries";
 import { getSchedule } from "@/lib/scheduleQueries";
 import { getChecklist } from "@/lib/checklist";
 import { recommendCourses } from "@/lib/recommendations";
@@ -13,6 +14,9 @@ export default async function PlanBuilderPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
+  const student = await getStudentByUsername(session.u);
+  if (!student) redirect("/login");
+
   const schedule = await getSchedule();
 
   // Cross-reference the student's Study Plan with what's offered this term.
@@ -23,7 +27,9 @@ export default async function PlanBuilderPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <DashboardHeader username={session.u} />
+      <DashboardHeader
+        student={{ studentId: student.studentId, nameEn: student.nameEn, photo: student.photo }}
+      />
 
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
         <div className="mb-6">

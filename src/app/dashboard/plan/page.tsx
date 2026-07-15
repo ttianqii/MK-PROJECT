@@ -32,11 +32,12 @@ export default async function PlanPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <DashboardHeader username={session.u} />
+      <DashboardHeader
+        student={{ studentId: student.studentId, nameEn: student.nameEn, photo: student.photo }}
+      />
 
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
         <PlanView
-          student={{ studentId: student.studentId, nameEn: student.nameEn, photo: student.photo }}
           planName={plan.name}
           updatedAt={plan.updatedAt.toISOString()}
           schedules={resolved}

@@ -11,7 +11,6 @@ import {
   type PlanSection,
 } from "@/lib/timetable";
 import DashboardHeader from "@/components/DashboardHeader";
-import StudentBanner from "@/components/StudentBanner";
 import TimetableGrid from "@/components/TimetableGrid";
 
 export const dynamic = "force-dynamic";
@@ -46,16 +45,12 @@ export default async function RegistrationResultPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <DashboardHeader username={session.u} />
+      <DashboardHeader
+        student={{ studentId: student.studentId, nameEn: student.nameEn, photo: student.photo }}
+      />
 
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-        <StudentBanner
-          studentId={student.studentId}
-          nameEn={student.nameEn}
-          photo={student.photo}
-        />
-
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-3xl font-light uppercase tracking-wide text-gray-900">
             Registration Result
           </h1>

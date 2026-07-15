@@ -9,7 +9,6 @@ import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import type { PlanSection } from "@/lib/timetable";
 import TimetableGrid from "./TimetableGrid";
-import StudentBanner from "./StudentBanner";
 import PopUpAlert from "./PopUpAlert";
 
 export interface PlanViewSchedule {
@@ -28,12 +27,10 @@ function formatUpdated(iso: string): string {
 }
 
 export default function PlanView({
-  student,
   planName,
   updatedAt,
   schedules,
 }: {
-  student: { studentId: string; nameEn: string; photo: string };
   planName: string;
   updatedAt: string;
   schedules: PlanViewSchedule[];
@@ -119,14 +116,8 @@ export default function PlanView({
 
   return (
     <div>
-      <StudentBanner
-        studentId={student.studentId}
-        nameEn={student.nameEn}
-        photo={student.photo}
-      />
-
       {/* Plan name + updated at */}
-      <div className="mt-5 flex items-center gap-3">
+      <div className="flex items-center gap-3">
         <Link
           href="/dashboard/plan/builder"
           className="order-last ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-gray-700"
