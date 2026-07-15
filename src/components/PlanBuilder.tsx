@@ -542,19 +542,11 @@ export default function PlanBuilder({
                           : "border-gray-200 bg-white hover:border-blue-400 hover:bg-blue-50"
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900">
-                          Section {sec.section ?? "—"}
-                        </p>
-                        {rooms ? (
-                          <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-gray-500">
-                            <BuildingGlyph />
-                            {rooms}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="min-w-0 truncate text-sm font-semibold text-gray-900">
+                        Section {sec.section ?? "—"}
+                      </p>
+                      <div className="flex shrink-0 items-center gap-3">
                         {seats.full ? (
                           <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
                             FULL
@@ -564,7 +556,13 @@ export default function PlanBuilder({
                             Selected
                           </span>
                         ) : null}
-                        {/* Seats as a plain number + icon (no bar) */}
+                        {rooms ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-600">
+                            <BuildingGlyph />
+                            {rooms}
+                          </span>
+                        ) : null}
+                        {/* Seats as a plain number + icon (no bar) — rightmost */}
                         <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-600">
                           <SeatGlyph />
                           {seats.available}
