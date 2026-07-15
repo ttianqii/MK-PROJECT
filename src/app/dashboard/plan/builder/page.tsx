@@ -3,7 +3,7 @@ import { getSession } from "@/lib/serverAuth";
 import { getStudentByUsername } from "@/lib/planQueries";
 import { getSchedule } from "@/lib/scheduleQueries";
 import { getChecklist } from "@/lib/checklist";
-import { recommendCourses } from "@/lib/recommendations";
+import { recommendCourses, stillNeededCourses } from "@/lib/recommendations";
 import { groupSections } from "@/lib/timetable";
 import PlanBuilder from "@/components/PlanBuilder";
 
@@ -20,9 +20,9 @@ export default async function PlanBuilderPage() {
 
   // Cross-reference the student's Study Plan with what's offered this term.
   const checklist = await getChecklist(session.u);
-  const recommendations = checklist
-    ? recommendCourses(checklist, groupSections(schedule.slots))
-    : [];
+  const sections = groupSections(schedule.slots);
+  const recommendations = checklist ? recommendCourses(checklist, sections) : [];
+  const needed = checklist ? stillNeededCourses(checklist, sections) : [];
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 md:pb-8">
@@ -45,7 +45,7 @@ export default async function PlanBuilderPage() {
             </p>
           </div>
         ) : (
-          <PlanBuilder data={schedule} recommendations={recommendations} />
+          <PlanBuilder data={schedule} recommendations={recommendations} needed={needed} />
         )}
     </main>
   );

@@ -89,3 +89,55 @@ export function recommendCourses(
 
   return out;
 }
+
+/**
+ * Every course the student still needs (hasn't passed yet), whether or not it
+ * is offered this term — for the "วิชาที่ยังขาด" (subjects still lacking) tab.
+ * Same de-duplication and completed-course rules as recommendCourses, minus
+ * the "offered this term" filter; sectionCount is 0 for courses with no
+ * sections this term.
+ */
+export function stillNeededCourses(
+  checklist: Checklist,
+  sections: PlanSection[]
+): RecommendedCourse[] {
+  const countByCode = new Map<string, number>();
+  for (const s of sections) {
+    countByCode.set(s.courseCode, (countByCode.get(s.courseCode) ?? 0) + 1);
+  }
+
+  const completed = new Set<string>();
+  for (const cat of checklist.categories) {
+    for (const grp of cat.groups) {
+      for (const c of grp.courses) {
+        if (isPassed(c.grade)) completed.add(c.code.trim().toUpperCase());
+      }
+    }
+  }
+
+  const seen = new Set<string>();
+  const out: RecommendedCourse[] = [];
+
+  for (const cat of checklist.categories) {
+    for (const grp of cat.groups) {
+      for (const c of grp.courses) {
+        const code = c.code.trim().toUpperCase();
+        if (!code || seen.has(code)) continue;
+        if (completed.has(code)) continue;
+        if (!stillNeeded(c.grade)) continue;
+
+        seen.add(code);
+        out.push({
+          code,
+          name: c.name,
+          category: shortCategory(cat.category),
+          credit: c.credit,
+          grade: c.grade.trim(),
+          sectionCount: countByCode.get(code) ?? 0,
+        });
+      }
+    }
+  }
+
+  return out;
+}

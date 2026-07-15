@@ -75,11 +75,16 @@ export default function BottomSheet({
     const end = () => {
       startRef.current = null;
       setDragging(false);
-      const snaps = [0, ...detentsRef.current];
+      const nz = detentsRef.current;
       const cur = vhRef.current;
-      const nearest = snaps.reduce((a, b) => (Math.abs(b - cur) < Math.abs(a - cur) ? b : a));
-      if (nearest === 0) onCloseRef.current();
-      else setVh(nearest);
+      const smallest = Math.min(...nz);
+      // Dragged clearly below the smallest detent → close cleanly.
+      if (cur < smallest - 8) {
+        onCloseRef.current();
+        return;
+      }
+      const nearest = nz.reduce((a, b) => (Math.abs(b - cur) < Math.abs(a - cur) ? b : a));
+      setVh(nearest);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", end);

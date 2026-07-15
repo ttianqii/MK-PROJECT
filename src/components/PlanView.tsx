@@ -300,7 +300,7 @@ export default function PlanView({
                   type="button"
                   onClick={() => register(s.id, label)}
                   disabled={busyId !== null || s.sections.length === 0}
-                  className="mt-3 w-full rounded-full bg-rose-700 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-60 sm:mt-4 sm:py-3 sm:text-lg"
+                  className="mt-3 w-full rounded-full bg-gray-900 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60 sm:mt-4 sm:py-3 sm:text-lg"
                 >
                   {busyId === s.id ? "Registering…" : "Register"}
                 </button>

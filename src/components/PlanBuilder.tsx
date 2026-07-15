@@ -66,12 +66,22 @@ function loadStored(): StoredPlan {
   return { subjects: [], chosen: {} };
 }
 
+type SheetTab = "recommend" | "needed" | "search";
+
+const SHEET_TABS: { id: SheetTab; label: string }[] = [
+  { id: "recommend", label: "Recommend" },
+  { id: "needed", label: "วิชาที่ยังขาด" },
+  { id: "search", label: "Search" },
+];
+
 export default function PlanBuilder({
   data,
   recommendations = [],
+  needed = [],
 }: {
   data: ScheduleData;
   recommendations?: RecommendedCourse[];
+  needed?: RecommendedCourse[];
 }) {
   const allSections = useMemo(() => groupSections(data.slots), [data.slots]);
   const byKey = useMemo(() => new Map(allSections.map((s) => [s.key, s])), [allSections]);
@@ -87,9 +97,10 @@ export default function PlanBuilder({
 
   // Add-subject sheet + section picker.
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [tab, setTab] = useState<"recommend" | "search">("recommend");
+  const [tab, setTab] = useState<SheetTab>("recommend");
   const [query, setQuery] = useState("");
   const [pickerCode, setPickerCode] = useState<string | null>(null);
+  const activeTabIndex = SHEET_TABS.findIndex((t) => t.id === tab);
 
   // Load / persist the plan in localStorage.
   useEffect(() => {
@@ -316,47 +327,42 @@ export default function PlanBuilder({
         initial={82}
         header={
           <>
-            <div className="flex items-center justify-between px-5 pb-3 pt-1">
+            <div className="px-5 pb-3 pt-1">
               <h2 className="text-lg font-bold text-gray-900">Add subject</h2>
-              <button
-                type="button"
-                onClick={() => setSheetOpen(false)}
-                aria-label="Close"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-              >
-                ✕
-              </button>
             </div>
-            {/* Tabs */}
-            <div className="mx-5 mb-3 grid grid-cols-2 gap-1 rounded-full bg-gray-100 p-1 text-sm font-semibold">
-              <button
-                type="button"
-                onClick={() => setTab("recommend")}
-                className={`rounded-full py-2 transition-colors ${
-                  tab === "recommend" ? "bg-rose-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Recommend
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab("search")}
-                className={`rounded-full py-2 transition-colors ${
-                  tab === "search" ? "bg-rose-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Search
-              </button>
+            {/* Animated black tab switcher */}
+            <div className="relative mx-5 mb-3 grid grid-cols-3 rounded-full bg-gray-100 p-1 text-xs font-semibold">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-1 rounded-full bg-gray-900 shadow-sm transition-transform duration-300 ease-out"
+                style={{
+                  width: "calc((100% - 0.5rem) / 3)",
+                  left: "0.25rem",
+                  transform: `translateX(${activeTabIndex * 100}%)`,
+                }}
+              />
+              {SHEET_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTab(t.id)}
+                  className={`relative z-10 whitespace-nowrap rounded-full py-2 transition-colors ${
+                    tab === t.id ? "text-white" : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
           </>
         }
       >
-          <div className="px-5 pb-8">
+          <div key={tab} className="animate-tab px-5 pb-8">
             {tab === "recommend" ? (
               recommendations.length === 0 ? (
                 <p className="py-8 text-center text-sm text-gray-500">
                   No recommendations — every course in your plan is already passed or not offered
-                  this term. Try the Search tab.
+                  this term. Try the other tabs.
                 </p>
               ) : (
                 <ul className="space-y-2">
@@ -367,6 +373,27 @@ export default function PlanBuilder({
                       name={r.name}
                       sectionCount={r.sectionCount}
                       grade={r.grade}
+                      added={subjects.includes(r.code)}
+                      onAdd={() => addSubject(r.code)}
+                    />
+                  ))}
+                </ul>
+              )
+            ) : tab === "needed" ? (
+              needed.length === 0 ? (
+                <p className="py-8 text-center text-sm text-gray-500">
+                  You&apos;re not missing any subjects — every requirement is complete. 🎉
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {needed.map((r) => (
+                    <SubjectRow
+                      key={r.code}
+                      code={r.code}
+                      name={r.name}
+                      sectionCount={r.sectionCount}
+                      grade={r.grade}
+                      offered={r.sectionCount > 0}
                       added={subjects.includes(r.code)}
                       onAdd={() => addSubject(r.code)}
                     />
@@ -432,20 +459,10 @@ export default function PlanBuilder({
         initial={82}
         header={
           pickerCourse ? (
-            <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 pb-3">
-              <div className="min-w-0">
-                <p className="font-mono text-base font-bold text-gray-900">{pickerCode}</p>
-                <p className="truncate text-sm text-gray-500">{pickerCourse.courseName}</p>
-                <p className="mt-0.5 text-xs uppercase tracking-wide text-gray-400">Choose a section</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPickerCode(null)}
-                aria-label="Close"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-              >
-                ✕
-              </button>
+            <div className="border-b border-gray-100 px-5 pb-3">
+              <p className="font-mono text-base font-bold text-gray-900">{pickerCode}</p>
+              <p className="truncate text-sm text-gray-500">{pickerCourse.courseName}</p>
+              <p className="mt-0.5 text-xs uppercase tracking-wide text-gray-400">Choose a section</p>
             </div>
           ) : null
         }
@@ -512,6 +529,7 @@ function SubjectRow({
   grade,
   added,
   onAdd,
+  offered = true,
 }: {
   code: string;
   name: string;
@@ -519,6 +537,7 @@ function SubjectRow({
   grade?: string;
   added: boolean;
   onAdd: () => void;
+  offered?: boolean; // false = still needed but not offered this term (can't add)
 }) {
   return (
     <li className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3">
@@ -533,18 +552,24 @@ function SubjectRow({
         </p>
         <p className="truncate text-xs text-gray-500">{name}</p>
         <p className="mt-0.5 text-xs text-gray-400">
-          {sectionCount} section{sectionCount === 1 ? "" : "s"}
+          {offered
+            ? `${sectionCount} section${sectionCount === 1 ? "" : "s"}`
+            : "not offered this term"}
         </p>
       </div>
       <button
         type="button"
         onClick={onAdd}
-        disabled={added}
+        disabled={added || !offered}
         className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium ${
-          added ? "cursor-default bg-green-100 text-green-700" : "bg-gray-900 text-white hover:bg-gray-700"
+          added
+            ? "cursor-default bg-green-100 text-green-700"
+            : !offered
+              ? "cursor-not-allowed bg-gray-100 text-gray-400"
+              : "bg-gray-900 text-white hover:bg-gray-700"
         }`}
       >
-        {added ? "Added ✓" : "Add +"}
+        {added ? "Added ✓" : !offered ? "—" : "Add +"}
       </button>
     </li>
   );
