@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticate } from "@/lib/checklist";
+import { authenticate, loginWithBu } from "@/lib/checklist";
 import { signSession, isHttpsRequest, SESSION_COOKIE, SESSION_MAX_AGE } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -31,12 +31,14 @@ export async function POST(request: NextRequest) {
   try {
     let username: unknown;
     let password: unknown;
+    let mode: unknown;
     if (isFormPost) {
       const form = await request.formData();
       username = form.get("username");
       password = form.get("password");
+      mode = form.get("mode");
     } else {
-      ({ username, password } = await request.json());
+      ({ username, password, mode } = await request.json());
     }
 
     if (typeof username !== "string" || typeof password !== "string" || !username || !password) {
@@ -46,7 +48,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Username and password are required." }, { status: 400 });
     }
 
-    const result = await authenticate(username.trim(), password);
+    // "bu" authenticates live against the real Bangkok University checklist
+    // system and mirrors the result into the local DB; anything else falls
+    // back to the local demo-account check (unchanged behavior).
+    const result =
+      mode === "bu"
+        ? await loginWithBu(username.trim(), password)
+        : await authenticate(username.trim(), password);
 
     if (!result.ok) {
       if (isFormPost) {

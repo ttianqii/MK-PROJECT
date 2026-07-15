@@ -21,7 +21,10 @@ function safeFrom(from: string | null) {
  * production HTML, leaving no-JS/slow-JS phones a blank page with nothing
  * to submit.
  */
+type LoginMode = "demo" | "bu";
+
 export default function LoginPage() {
+  const [mode, setMode] = useState<LoginMode>("demo");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -46,7 +49,7 @@ export default function LoginPage() {
         // silently dropped, so the redirect below just bounces back to login.
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, mode }),
       });
 
       if (response.ok) {
@@ -71,7 +74,33 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 py-8">
       <div className="max-w-md w-full bg-white p-6 rounded-md shadow-xl sm:p-8">
         <h2 className="text-xl font-semibold text-gray-900">Sign in</h2>
-        <p className="mt-1 text-sm text-gray-500">Use your student account to access your study plan.</p>
+        <p className="mt-1 text-sm text-gray-500">
+          {mode === "bu"
+            ? "Sign in with your real BU account to load your live study plan."
+            : "Use your student account to access your study plan."}
+        </p>
+
+        <div className="mt-4 grid grid-cols-2 gap-1 rounded-md bg-gray-100 p-1 text-sm font-medium">
+          <button
+            type="button"
+            onClick={() => setMode("demo")}
+            className={`rounded-md py-1.5 transition-colors ${
+              mode === "demo" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Demo account
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("bu")}
+            className={`rounded-md py-1.5 transition-colors ${
+              mode === "bu" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            BU account
+          </button>
+        </div>
+
         {/*
           method/action make this a real, working form even if JavaScript
           never hydrates on the client (the onSubmit handler below normally
@@ -79,6 +108,8 @@ export default function LoginPage() {
           supports both this native form-post path and the JS fetch path).
         */}
         <form onSubmit={handleSubmit} method="post" action="/api/auth/login" className="mt-4">
+          <input type="hidden" name="mode" value={mode} />
+
           <label htmlFor="username" className="block text-sm font-medium text-gray-700">
             Username
           </label>
@@ -90,7 +121,7 @@ export default function LoginPage() {
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            placeholder="e.g. demo.student"
+            placeholder={mode === "bu" ? "e.g. nattapong.tree" : "e.g. demo.student"}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
@@ -123,10 +154,17 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-4 rounded-md bg-blue-50 px-3 py-2 text-center text-xs text-blue-700">
-          Demo account: <span className="font-mono font-semibold">demo.student</span> /{" "}
-          <span className="font-mono font-semibold">demo1234</span>
-        </p>
+        {mode === "demo" ? (
+          <p className="mt-4 rounded-md bg-blue-50 px-3 py-2 text-center text-xs text-blue-700">
+            Demo account: <span className="font-mono font-semibold">demo.student</span> /{" "}
+            <span className="font-mono font-semibold">demo1234</span>
+          </p>
+        ) : (
+          <p className="mt-4 rounded-md bg-blue-50 px-3 py-2 text-center text-xs text-blue-700">
+            Uses your real MyBU credentials to fetch your live checklist from studentchecklist.bu.ac.th.
+            Your password is never stored.
+          </p>
+        )}
       </div>
     </div>
   );

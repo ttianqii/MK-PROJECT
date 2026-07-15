@@ -3,10 +3,12 @@
 // university-portal scraping of the original project: the same `Checklist`
 // shape is built from the students / checklist_categories / checklist_courses
 // tables, so the dashboard components are unchanged.
+import { randomBytes } from "crypto";
 import { asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { students, checklistCategories, checklistCourses } from "@/db/schema";
-import { verifyPassword } from "@/lib/passwords";
+import { verifyPassword, hashPassword } from "@/lib/passwords";
+import { fetchBuChecklist } from "@/lib/buChecklist";
 
 export interface AuthResult {
   ok: boolean;
@@ -67,6 +69,93 @@ export async function authenticate(username: string, password: string): Promise<
     return { ok: false, message: "Invalid username or password." };
   }
   return { ok: true };
+}
+
+/**
+ * Authenticate a real BU student against studentchecklist.bu.ac.th and mirror
+ * their scraped checklist into the local students / checklist_categories /
+ * checklist_courses tables — the same tables and shape the demo account uses,
+ * so the dashboard, plan builder, and registration all work unchanged. Their
+ * BU password is only ever forwarded to BU over HTTPS for this one check; it
+ * is never stored.
+ */
+export async function loginWithBu(username: string, password: string): Promise<AuthResult> {
+  const result = await fetchBuChecklist(username, password);
+  if (!result.ok) return { ok: false, message: result.message };
+  await syncBuChecklist(username, result.checklist);
+  return { ok: true };
+}
+
+/**
+ * Upsert a student's profile + replace their checklist categories/courses
+ * with freshly scraped BU data. Plans, saved schedules, and registrations
+ * (keyed off the same students.id) are untouched — those are local-only
+ * features BU's real system has no notion of.
+ */
+async function syncBuChecklist(username: string, checklist: Checklist): Promise<void> {
+  const { student } = checklist;
+
+  await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ id: students.id })
+      .from(students)
+      .where(eq(students.username, username))
+      .limit(1);
+
+    const profile = {
+      nameTh: student.nameTh,
+      nameEn: student.nameEn,
+      studentId: student.studentId,
+      photo: student.photo,
+      gpa: student.gpa,
+      totalCredits: student.totalCredits,
+      creditsEarned: student.creditsEarned,
+      creditsTransferred: student.creditsTransferred,
+      info: student.info,
+    };
+
+    let studentDbId: number;
+    if (existing) {
+      studentDbId = existing.id;
+      await tx.update(students).set(profile).where(eq(students.id, studentDbId));
+      // Cascades to checklist_courses via the FK's onDelete: "cascade".
+      await tx.delete(checklistCategories).where(eq(checklistCategories.studentId, studentDbId));
+    } else {
+      // BU accounts always authenticate live against BU, never against this
+      // hash — a random value just satisfies the NOT NULL column.
+      const [res] = await tx
+        .insert(students)
+        .values({ username, passwordHash: hashPassword(randomBytes(32).toString("hex")), ...profile });
+      studentDbId = res.insertId;
+    }
+
+    for (const [catPos, cat] of checklist.categories.entries()) {
+      const [catRes] = await tx.insert(checklistCategories).values({
+        studentId: studentDbId,
+        position: catPos,
+        name: cat.category,
+        creditEarned: cat.creditEarned,
+        creditRequired: cat.creditRequired,
+      });
+      const categoryId = catRes.insertId;
+
+      let coursePos = 0;
+      for (const group of cat.groups) {
+        for (const course of group.courses) {
+          await tx.insert(checklistCourses).values({
+            categoryId,
+            position: coursePos++,
+            groupName: group.group,
+            code: course.code,
+            name: course.name,
+            credit: course.credit,
+            grade: course.grade,
+            note: course.note,
+          });
+        }
+      }
+    }
+  });
 }
 
 /** Load a student's full checklist. Returns null when the account doesn't exist. */

@@ -18,7 +18,9 @@
     "db:migrate": "node scripts/migrate.mjs",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "node scripts/seed.mjs"
+    "db:seed": "node scripts/seed.mjs",
+    "db:load-schedule": "node scripts/load-bu-schedule.mjs",
+    "db:import-schedule": "bun run scripts/import-schedule.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
