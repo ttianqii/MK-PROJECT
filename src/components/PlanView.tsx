@@ -196,7 +196,7 @@ export default function PlanView({
                       onClick={() => toggleLike(s)}
                       aria-label={liked ? `Unlike ${label}` : `Like ${label}`}
                       aria-pressed={liked}
-                      className="relative flex h-5 w-5 items-center justify-center hover:scale-110 sm:h-7 sm:w-7"
+                      className="relative flex h-8 w-8 items-center justify-center hover:scale-110 sm:h-7 sm:w-7"
                     >
                       {burstId === s.id
                         ? BURST_DOTS.map((dot, i) => (
@@ -221,7 +221,7 @@ export default function PlanView({
                         strokeWidth="2"
                         aria-hidden="true"
                         onAnimationEnd={() => setPulseId(null)}
-                        className={`h-5 w-5 transition-colors duration-200 sm:h-7 sm:w-7 ${
+                        className={`h-7 w-7 transition-colors duration-200 sm:h-7 sm:w-7 ${
                           pulseId === s.id ? "animate-heart-pop" : ""
                         }`}
                       >
@@ -235,9 +235,9 @@ export default function PlanView({
                         aria-haspopup="menu"
                         aria-expanded={openMenuId === s.id}
                         aria-label={`More options for ${label}`}
-                        className="flex h-5 w-5 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 sm:h-7 sm:w-7"
+                        className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 sm:h-7 sm:w-7"
                       >
-                        <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <svg className="h-6 w-6 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                           <circle cx="12" cy="5" r="1.8" />
                           <circle cx="12" cy="12" r="1.8" />
                           <circle cx="12" cy="19" r="1.8" />
