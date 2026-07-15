@@ -57,11 +57,6 @@ export async function getOrCreatePlan(studentDbId: number): Promise<PlanWithSche
   return { plan, schedules };
 }
 
-export async function renamePlan(studentDbId: number, name: string): Promise<void> {
-  const { plan } = await getOrCreatePlan(studentDbId);
-  await db.update(plans).set({ name }).where(eq(plans.id, plan.id));
-}
-
 /** Append a schedule to the plan and return its row. */
 export async function addSchedule(
   studentDbId: number,

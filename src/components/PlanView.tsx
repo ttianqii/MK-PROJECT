@@ -1,8 +1,8 @@
 "use client";
 
-// The saved-plan screen: student header, editable plan name, and one card per
-// saved schedule (timetable grid, seat chips, ♥, and REGISTER) — echoing the
-// reference mobile design.
+// The saved-plan screen: "Planner" heading and one card per saved schedule
+// (timetable grid, seat chips, ♥, and REGISTER) — echoing the reference
+// mobile design.
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,40 +27,16 @@ function formatUpdated(iso: string): string {
 }
 
 export default function PlanView({
-  planName,
   updatedAt,
   schedules,
 }: {
-  planName: string;
   updatedAt: string;
   schedules: PlanViewSchedule[];
 }) {
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(planName);
   const [busyId, setBusyId] = useState<number | null>(null);
   // Optimistic ♥ state so the heart flips instantly.
   const [likedOverride, setLikedOverride] = useState<Record<number, boolean>>({});
-
-  const saveName = async () => {
-    setEditing(false);
-    const trimmed = name.trim();
-    if (!trimmed || trimmed === planName) {
-      setName(planName);
-      return;
-    }
-    const res = await fetch("/api/plan", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: trimmed }),
-    });
-    if (res.ok) {
-      router.refresh();
-    } else {
-      setName(planName);
-      PopUpAlert("Rename failed", "Could not rename the plan.", "error");
-    }
-  };
 
   const toggleLike = async (s: PlanViewSchedule) => {
     const next = !(likedOverride[s.id] ?? s.liked);
@@ -116,48 +92,20 @@ export default function PlanView({
 
   return (
     <div>
-      {/* Plan name + updated at */}
-      <div className="flex items-center gap-3">
+      {/* Page title, matching the Registration Result heading style */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-3xl font-light uppercase tracking-wide text-gray-900">Planner</h1>
         <Link
           href="/dashboard/plan/builder"
-          className="order-last ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-gray-700"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-gray-700"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
             <path d="M12 5v14M5 12h14" />
           </svg>
-          Plan
+          Add Plan
         </Link>
-        {editing ? (
-          <input
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={saveName}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") e.currentTarget.blur();
-              if (e.key === "Escape") {
-                setName(planName);
-                setEditing(false);
-              }
-            }}
-            maxLength={100}
-            aria-label="Plan name"
-            className="w-56 rounded-md border border-gray-300 bg-white px-2 py-1 text-3xl font-light text-gray-900 focus:border-blue-500 focus:outline-none"
-          />
-        ) : (
-          <h1 className="text-3xl font-light text-gray-900">{name}</h1>
-        )}
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          aria-label="Rename plan"
-          className="text-gray-700 hover:text-gray-900"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
-          </svg>
-        </button>
       </div>
+
       <p className="mt-1 text-sm uppercase tracking-wide text-gray-400">
         Updated at {formatUpdated(updatedAt)} hrs.
       </p>
@@ -168,8 +116,8 @@ export default function PlanView({
           <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center">
             <p className="text-gray-600">No saved schedules yet.</p>
             <p className="mt-1 text-sm text-gray-400">
-              Press the <span className="font-semibold text-gray-600">+ Plan</span> button above to
-              build one, then “Save to My Plan”.
+              Press <span className="font-semibold text-gray-600">Add Plan</span> above to build
+              one, then “Save to My Plan”.
             </p>
           </div>
         ) : (

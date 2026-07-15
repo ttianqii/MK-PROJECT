@@ -37,11 +37,7 @@ export default async function PlanPage() {
       />
 
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-        <PlanView
-          planName={plan.name}
-          updatedAt={plan.updatedAt.toISOString()}
-          schedules={resolved}
-        />
+        <PlanView updatedAt={plan.updatedAt.toISOString()} schedules={resolved} />
       </main>
     </div>
   );
