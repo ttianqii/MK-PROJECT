@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import PopUpAlert from "./PopUpAlert";
 import BottomSheet from "./BottomSheet";
 import type { ScheduleData } from "@/lib/scheduleQueries";
-import type { RecommendedCourse } from "@/lib/recommendations";
+import type { RecommendedCourse, Eligibility } from "@/lib/recommendations";
 import {
   detectConflicts,
   formatMinutes,
@@ -78,15 +78,27 @@ export default function PlanBuilder({
   data,
   recommendations = [],
   needed = [],
+  eligibility = { passed: [], prereqByCode: {}, checklistCodes: [] },
 }: {
   data: ScheduleData;
   recommendations?: RecommendedCourse[];
   needed?: RecommendedCourse[];
+  eligibility?: Eligibility;
 }) {
   const allSections = useMemo(() => groupSections(data.slots), [data.slots]);
   const byKey = useMemo(() => new Map(allSections.map((s) => [s.key, s])), [allSections]);
   const courses = useMemo(() => groupCourses(allSections), [allSections]);
   const courseByCode = useMemo(() => new Map(courses.map((c) => [c.courseCode, c])), [courses]);
+
+  // Registration eligibility from the student's real checklist.
+  const passedSet = useMemo(() => new Set(eligibility.passed), [eligibility.passed]);
+  const checklistSet = useMemo(() => new Set(eligibility.checklistCodes), [eligibility.checklistCodes]);
+  // Prereq status for a course: its prerequisite code(s) and whether they're met.
+  const prereqInfo = (code: string) => {
+    const pres = eligibility.prereqByCode[code.toUpperCase()] ?? [];
+    const unmet = pres.filter((p) => !passedSet.has(p));
+    return { prereq: pres, prereqMet: unmet.length === 0 };
+  };
 
   const router = useRouter();
   const [subjects, setSubjects] = useState<string[]>([]);
@@ -185,12 +197,16 @@ export default function PlanBuilder({
   const searchResults = useMemo(() => {
     if (!q) return [];
     return courses
-      .filter(
-        (c) =>
-          c.courseCode.toLowerCase().includes(q) || c.courseName.toLowerCase().includes(q)
-      )
+      .filter((c) => {
+        // Hide courses restricted to another program (name has "(for XXX)")
+        // unless they're in the student's own curriculum — those are the ones
+        // they have no right to register for.
+        const restricted = /\(for\s/i.test(c.courseName);
+        if (restricted && !checklistSet.has(c.courseCode.toUpperCase())) return false;
+        return c.courseCode.toLowerCase().includes(q) || c.courseName.toLowerCase().includes(q);
+      })
       .slice(0, 40);
-  }, [courses, q]);
+  }, [courses, q, checklistSet]);
 
   const pickerCourse = pickerCode ? courseByCode.get(pickerCode) : null;
 
@@ -366,17 +382,22 @@ export default function PlanBuilder({
                 </p>
               ) : (
                 <ul className="space-y-2">
-                  {recommendations.map((r) => (
-                    <SubjectRow
-                      key={r.code}
-                      code={r.code}
-                      name={r.name}
-                      sectionCount={r.sectionCount}
-                      grade={r.grade}
-                      added={subjects.includes(r.code)}
-                      onAdd={() => addSubject(r.code)}
-                    />
-                  ))}
+                  {recommendations.map((r) => {
+                    const { prereq, prereqMet } = prereqInfo(r.code);
+                    return (
+                      <SubjectRow
+                        key={r.code}
+                        code={r.code}
+                        name={r.name}
+                        sectionCount={r.sectionCount}
+                        grade={r.grade}
+                        added={subjects.includes(r.code)}
+                        onAdd={() => addSubject(r.code)}
+                        prereq={prereq}
+                        prereqMet={prereqMet}
+                      />
+                    );
+                  })}
                 </ul>
               )
             ) : tab === "needed" ? (
@@ -386,18 +407,23 @@ export default function PlanBuilder({
                 </p>
               ) : (
                 <ul className="space-y-2">
-                  {needed.map((r) => (
-                    <SubjectRow
-                      key={r.code}
-                      code={r.code}
-                      name={r.name}
-                      sectionCount={r.sectionCount}
-                      grade={r.grade}
-                      offered={r.sectionCount > 0}
-                      added={subjects.includes(r.code)}
-                      onAdd={() => addSubject(r.code)}
-                    />
-                  ))}
+                  {needed.map((r) => {
+                    const { prereq, prereqMet } = prereqInfo(r.code);
+                    return (
+                      <SubjectRow
+                        key={r.code}
+                        code={r.code}
+                        name={r.name}
+                        sectionCount={r.sectionCount}
+                        grade={r.grade}
+                        offered={r.sectionCount > 0}
+                        added={subjects.includes(r.code)}
+                        onAdd={() => addSubject(r.code)}
+                        prereq={prereq}
+                        prereqMet={prereqMet}
+                      />
+                    );
+                  })}
                 </ul>
               )
             ) : (
@@ -433,16 +459,21 @@ export default function PlanBuilder({
                   </p>
                 ) : (
                   <ul className="space-y-2">
-                    {searchResults.map((c) => (
-                      <SubjectRow
-                        key={c.courseCode}
-                        code={c.courseCode}
-                        name={c.courseName}
-                        sectionCount={c.sections.length}
-                        added={subjects.includes(c.courseCode)}
-                        onAdd={() => addSubject(c.courseCode)}
-                      />
-                    ))}
+                    {searchResults.map((c) => {
+                      const { prereq, prereqMet } = prereqInfo(c.courseCode);
+                      return (
+                        <SubjectRow
+                          key={c.courseCode}
+                          code={c.courseCode}
+                          name={c.courseName}
+                          sectionCount={c.sections.length}
+                          added={subjects.includes(c.courseCode)}
+                          onAdd={() => addSubject(c.courseCode)}
+                          prereq={prereq}
+                          prereqMet={prereqMet}
+                        />
+                      );
+                    })}
                   </ul>
                 )}
               </div>
@@ -530,6 +561,8 @@ function SubjectRow({
   added,
   onAdd,
   offered = true,
+  prereq = [],
+  prereqMet = true,
 }: {
   code: string;
   name: string;
@@ -538,7 +571,11 @@ function SubjectRow({
   added: boolean;
   onAdd: () => void;
   offered?: boolean; // false = still needed but not offered this term (can't add)
+  prereq?: string[]; // prerequisite course code(s), if any
+  prereqMet?: boolean; // false = a prerequisite hasn't been passed yet (can't add)
 }) {
+  // Blocked from registering: not offered this term, or a prerequisite is unmet.
+  const blocked = !offered || !prereqMet;
   return (
     <li className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3">
       <div className="min-w-0">
@@ -556,20 +593,26 @@ function SubjectRow({
             ? `${sectionCount} section${sectionCount === 1 ? "" : "s"}`
             : "not offered this term"}
         </p>
+        {prereq.length > 0 ? (
+          <p className={`mt-0.5 text-xs ${prereqMet ? "text-gray-400" : "text-amber-600"}`}>
+            prereq: {prereq.join(", ")}
+            {prereqMet ? " ✓" : " (ยังไม่ผ่าน)"}
+          </p>
+        ) : null}
       </div>
       <button
         type="button"
         onClick={onAdd}
-        disabled={added || !offered}
+        disabled={added || blocked}
         className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium ${
           added
             ? "cursor-default bg-green-100 text-green-700"
-            : !offered
+            : blocked
               ? "cursor-not-allowed bg-gray-100 text-gray-400"
               : "bg-gray-900 text-white hover:bg-gray-700"
         }`}
       >
-        {added ? "Added ✓" : !offered ? "—" : "Add +"}
+        {added ? "Added ✓" : blocked ? "—" : "Add +"}
       </button>
     </li>
   );

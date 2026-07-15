@@ -141,3 +141,42 @@ export function stillNeededCourses(
 
   return out;
 }
+
+export interface Eligibility {
+  passed: string[]; // course codes the student has already passed
+  prereqByCode: Record<string, string[]>; // courseCode -> prerequisite course code(s)
+  checklistCodes: string[]; // every course code in the student's curriculum
+}
+
+/**
+ * Derive registration eligibility data from the student's real BU checklist:
+ * which courses they've passed, and each course's prerequisites (parsed from
+ * the checklist "note" field, e.g. "CS311;F" or "ST207; D" -> ["CS311"] /
+ * ["ST207"]). Prerequisites are only known for courses in the student's own
+ * curriculum, so this is scoped per faculty by construction. The min-grade
+ * suffix is ignored — "passed" (not F/W/I/…) is treated as satisfying it.
+ */
+export function buildEligibility(checklist: Checklist): Eligibility {
+  const passed: string[] = [];
+  const prereqByCode: Record<string, string[]> = {};
+  const checklistCodes: string[] = [];
+  const seen = new Set<string>();
+
+  for (const cat of checklist.categories) {
+    for (const grp of cat.groups) {
+      for (const c of grp.courses) {
+        const code = c.code.trim().toUpperCase();
+        if (!code) continue;
+        if (!seen.has(code)) {
+          seen.add(code);
+          checklistCodes.push(code);
+        }
+        if (isPassed(c.grade)) passed.push(code);
+        const pres = (c.note || "").toUpperCase().match(/[A-Z]{2,4}\d{2,4}/g);
+        if (pres && pres.length) prereqByCode[code] = Array.from(new Set(pres));
+      }
+    }
+  }
+
+  return { passed, prereqByCode, checklistCodes };
+}
