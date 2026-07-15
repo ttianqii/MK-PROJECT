@@ -22,18 +22,14 @@ export interface PlanViewSchedule {
 
 // Confetti dots for the like-burst: a full ring, varying color/size/travel
 // distance/stagger per dot so it reads as an organic explosion rather than
-// a uniform circle — echoing Twitter's heart-burst effect.
+// a uniform circle — echoing Twitter's heart-burst effect. The heart is the
+// same 28px at every breakpoint now, so one set of dot sizes covers both.
 const BURST_COLORS = ["#E11D48", "#FB923C", "#FBBF24", "#F472B6"];
-// Distance/size differ per breakpoint (the heart itself is smaller on
-// phones), applied as responsive classes below since inline styles can't
-// use `sm:` — only angle/color stay flat via inline style.
 const BURST_DOTS = Array.from({ length: 12 }, (_, i) => ({
   angle: `${i * 30}deg`,
   color: BURST_COLORS[i % BURST_COLORS.length],
-  distMobile: i % 2 === 0 ? "19px" : "14px",
-  distDesktop: i % 2 === 0 ? "26px" : "19px",
-  sizeMobile: i % 2 === 0 ? "5px" : "4px",
-  sizeDesktop: i % 2 === 0 ? "7px" : "5px",
+  dist: i % 2 === 0 ? "26px" : "19px",
+  size: i % 2 === 0 ? "7px" : "5px",
   delay: `${(i % 3) * 15}ms`,
 }));
 
@@ -203,10 +199,12 @@ export default function PlanView({
                             <span
                               key={i}
                               aria-hidden="true"
-                              className={`heart-burst-dot [--dist:${dot.distMobile}] [--size:${dot.sizeMobile}] sm:[--dist:${dot.distDesktop}] sm:[--size:${dot.sizeDesktop}]`}
+                              className="heart-burst-dot"
                               style={
                                 {
                                   "--angle": dot.angle,
+                                  "--dist": dot.dist,
+                                  "--size": dot.size,
                                   "--delay": dot.delay,
                                   backgroundColor: dot.color,
                                 } as CSSProperties
