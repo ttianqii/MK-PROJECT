@@ -3,8 +3,8 @@
 import { useMemo } from "react";
 import {
   DAYS,
-  colorFor,
   formatMinutes,
+  sectionColors,
   type PlanSection,
 } from "@/lib/timetable";
 
@@ -19,10 +19,13 @@ interface Placed {
   conflict: boolean;
 }
 
-const LANE_H = 30; // px per stacked block
+const LANE_H = 26; // px per stacked block
 const LANE_GAP = 4;
-const ROW_PAD = 8;
+const ROW_PAD = 9;
 const LABEL_W = 56; // px, day-label gutter
+const DAY_START = 540; // 09:00, first column of the reference design
+const DAY_END = 1260; // 21:00, last column
+const TICK = 90; // column width in minutes
 
 /** Assign overlapping meetings on a day to stacked lanes (interval graph). */
 function assignLanes(items: Omit<Placed, "lane" | "conflict">[]): Placed[] {
@@ -67,12 +70,13 @@ export default function TimetableGrid({
     const minStart = allMeetings.length ? Math.min(...allMeetings.map((m) => m.startMin)) : 540;
     const maxEnd = allMeetings.length ? Math.max(...allMeetings.map((m) => m.endMin)) : 1260;
 
-    // Fixed-ish window, expanded to fit anything unusual; snapped to the hour.
-    const start = Math.min(480, Math.floor(minStart / 60) * 60); // ≤ 08:00
-    const end = Math.max(1260, Math.ceil(maxEnd / 60) * 60); // ≥ 21:00
+    // The reference's fixed 09:00–21:00 window, extended by whole columns
+    // only when a class falls outside it.
+    const start = DAY_START - Math.max(0, Math.ceil((DAY_START - minStart) / TICK)) * TICK;
+    const end = DAY_END + Math.max(0, Math.ceil((maxEnd - DAY_END) / TICK)) * TICK;
 
     const ticks: number[] = [];
-    for (let t = start; t <= end; t += 90) ticks.push(t);
+    for (let t = start; t <= end; t += TICK) ticks.push(t);
 
     const rows = DAYS.map((d) => {
       const dayMeetings = sections.flatMap((s) =>
@@ -97,6 +101,7 @@ export default function TimetableGrid({
   const span = end - start || 1;
   const pctLeft = (min: number) => `${((min - start) / span) * 100}%`;
   const pctWidth = (a: number, b: number) => `${((b - a) / span) * 100}%`;
+  const colors = useMemo(() => sectionColors(sections), [sections]);
 
   return (
     <div
@@ -106,15 +111,17 @@ export default function TimetableGrid({
           : "overflow-x-auto rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
       }
     >
-      <div className="min-w-[720px]">
+      <div className="min-w-80">
         {/* Time header */}
         <div className="flex" style={{ paddingLeft: LABEL_W }}>
           <div className="relative h-6 flex-1">
             {ticks.map((t) => (
               <span
                 key={t}
-                className="absolute -translate-x-1/2 text-xs font-medium text-gray-500"
-                style={{ left: pctLeft(t) }}
+                className={`absolute text-[10px] font-medium text-gray-500 sm:text-xs ${
+                  t === end ? "" : "-translate-x-1/2"
+                }`}
+                style={t === end ? { right: 0 } : { left: pctLeft(t) }}
               >
                 {formatMinutes(t)}
               </span>
@@ -123,28 +130,33 @@ export default function TimetableGrid({
         </div>
 
         {/* Day rows */}
-        {rows.map(({ day, placed, lanes }) => {
+        {rows.map(({ day, placed, lanes }, rowIdx) => {
           const rowH = lanes * LANE_H + (lanes - 1) * LANE_GAP + ROW_PAD * 2;
           return (
-            <div key={day.full} className="flex items-stretch border-t border-gray-100">
+            <div
+              key={day.full}
+              className={`flex items-stretch border-t border-gray-300/70 ${
+                rowIdx === rows.length - 1 ? "border-b" : ""
+              }`}
+            >
               <div
-                className="flex items-center text-sm font-semibold text-gray-600"
+                className="flex items-center text-xs font-semibold tracking-wide text-gray-700"
                 style={{ width: LABEL_W }}
               >
                 {day.short}
               </div>
               <div className="relative flex-1" style={{ height: rowH }}>
-                {/* Vertical gridlines */}
+                {/* Vertical gridlines, one per column boundary */}
                 {ticks.map((t) => (
                   <div
                     key={t}
-                    className="absolute top-0 bottom-0 border-l border-gray-100"
+                    className="absolute top-0 bottom-0 border-l border-gray-300/70"
                     style={{ left: pctLeft(t) }}
                   />
                 ))}
-                {/* Class blocks */}
+                {/* Class blocks: clean colored pills, details in the tooltip */}
                 {placed.map((p, i) => {
-                  const color = colorFor(p.section.key);
+                  const color = colors.get(p.section.key) ?? "#7A8290";
                   // When the parent supplies conflict keys (time + duplicate
                   // course), let them drive the outline; otherwise fall back to
                   // this grid's own time-overlap detection.
@@ -155,27 +167,17 @@ export default function TimetableGrid({
                     <div
                       key={i}
                       title={`${p.section.courseCode}${p.section.section ? ` (${p.section.section})` : ""} · ${p.section.courseName}\n${formatMinutes(p.startMin)}–${formatMinutes(p.endMin)} · ${p.room}${isConflict ? "\n⚠ conflict" : ""}`}
-                      className="absolute flex items-center overflow-hidden rounded-full px-2 text-xs font-semibold text-white shadow-sm"
+                      className="absolute rounded-full"
                       style={{
-                        left: pctLeft(p.startMin),
-                        width: pctWidth(p.startMin, p.endMin),
+                        left: `calc(${pctLeft(p.startMin)} + 2px)`,
+                        width: `calc(${pctWidth(p.startMin, p.endMin)} - 4px)`,
                         top: ROW_PAD + p.lane * (LANE_H + LANE_GAP),
                         height: LANE_H,
                         backgroundColor: color,
                         outline: isConflict ? "2px solid #DC2626" : undefined,
-                        outlineOffset: isConflict ? "-2px" : undefined,
+                        outlineOffset: isConflict ? "1px" : undefined,
                       }}
-                    >
-                      <span className="truncate">
-                        {p.section.courseCode}
-                        {p.section.section ? (
-                          <span className="ml-1 font-normal opacity-80">{p.section.section}</span>
-                        ) : null}
-                        {p.room ? (
-                          <span className="ml-1 font-normal opacity-70">@{p.room}</span>
-                        ) : null}
-                      </span>
-                    </div>
+                    />
                   );
                 })}
               </div>
@@ -195,7 +197,7 @@ export default function TimetableGrid({
               }`}
               title={`${s.courseCode}${s.section ? ` (${s.section})` : ""} · seats: ${s.capacity ?? "—"}`}
             >
-              <SeatIcon color={colorFor(s.key)} />
+              <SeatIcon color={colors.get(s.key) ?? "#7A8290"} />
               {s.capacity ?? "—"}
             </span>
           ))}

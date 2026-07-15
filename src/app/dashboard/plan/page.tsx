@@ -1,11 +1,10 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/serverAuth";
+import { getOrCreatePlan, getStudentByUsername } from "@/lib/planQueries";
 import { getSchedule } from "@/lib/scheduleQueries";
-import { getChecklist } from "@/lib/checklist";
-import { recommendCourses } from "@/lib/recommendations";
-import { groupSections } from "@/lib/timetable";
+import { groupSections, type PlanSection } from "@/lib/timetable";
 import DashboardHeader from "@/components/DashboardHeader";
-import PlanBuilder from "@/components/PlanBuilder";
+import PlanView, { type PlanViewSchedule } from "@/components/PlanView";
 
 export const dynamic = "force-dynamic";
 
@@ -13,40 +12,35 @@ export default async function PlanPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const schedule = await getSchedule();
+  const student = await getStudentByUsername(session.u);
+  if (!student) redirect("/login");
 
-  // Cross-reference the student's Study Plan with what's offered this term.
-  const checklist = await getChecklist(session.u);
-  const recommendations = checklist
-    ? recommendCourses(checklist, groupSections(schedule.slots))
-    : [];
+  const [{ plan, schedules }, scheduleData] = await Promise.all([
+    getOrCreatePlan(student.id),
+    getSchedule(),
+  ]);
+
+  // Resolve each schedule's stored section keys against this term's offering.
+  const byKey = new Map(groupSections(scheduleData.slots).map((s) => [s.key, s]));
+  const resolved: PlanViewSchedule[] = schedules.map((s) => ({
+    id: s.id,
+    liked: s.liked,
+    sections: s.sectionKeys
+      .map((k) => byKey.get(k))
+      .filter((x): x is PlanSection => Boolean(x)),
+  }));
 
   return (
     <div className="min-h-screen bg-gray-100">
       <DashboardHeader username={session.u} />
 
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-gray-900">Plan next term</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            {schedule.campus && schedule.semester
-              ? `${schedule.campus} · ${schedule.semester}.`
-              : "Build your weekly timetable."}{" "}
-            Add class sections to lay out your week and catch time conflicts.
-          </p>
-        </div>
-
-        {schedule.slots.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-gray-300 bg-white p-12 text-center">
-            <p className="text-gray-600">No schedule data has been loaded yet.</p>
-            <p className="mt-1 text-sm text-gray-400">
-              Run <code className="rounded bg-gray-100 px-1 py-0.5 font-mono">bun run db:seed</code>{" "}
-              to load the demo schedule.
-            </p>
-          </div>
-        ) : (
-          <PlanBuilder data={schedule} recommendations={recommendations} />
-        )}
+        <PlanView
+          student={{ studentId: student.studentId, nameEn: student.nameEn, photo: student.photo }}
+          planName={plan.name}
+          updatedAt={plan.updatedAt.toISOString()}
+          schedules={resolved}
+        />
       </main>
     </div>
   );

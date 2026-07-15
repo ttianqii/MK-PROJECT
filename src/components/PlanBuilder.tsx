@@ -6,10 +6,10 @@ import PopUpAlert from "./PopUpAlert";
 import type { ScheduleData } from "@/lib/scheduleQueries";
 import type { RecommendedCourse } from "@/lib/recommendations";
 import {
-  colorFor,
   detectConflicts,
   formatMinutes,
   groupSections,
+  sectionColors,
   type PlanSection,
 } from "@/lib/timetable";
 import TimetableGrid from "./TimetableGrid";
@@ -81,6 +81,9 @@ export default function PlanBuilder({
     [planned]
   );
 
+  // Same positional palette the grid uses, so the list dots match the blocks.
+  const plannedColors = useMemo(() => sectionColors(planned), [planned]);
+
   const add = (key: string) => setKeys((ks) => (ks.includes(key) ? ks : [...ks, key]));
   const remove = (key: string) => setKeys((ks) => ks.filter((k) => k !== key));
 
@@ -99,7 +102,7 @@ export default function PlanBuilder({
         return;
       }
       PopUpAlert("Saved!", "Added to My Plan as a new schedule.", "success");
-      router.push("/dashboard/plans");
+      router.push("/dashboard/plan");
     } finally {
       setSaving(false);
     }
@@ -228,10 +231,10 @@ export default function PlanBuilder({
                     type="button"
                     onClick={() => add(s.key)}
                     disabled={added}
-                    className={`shrink-0 rounded-md px-3 py-1.5 text-sm font-medium ${
+                    className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium ${
                       added
                         ? "cursor-default bg-gray-100 text-gray-400"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
+                        : "bg-gray-900 text-white hover:bg-gray-700"
                     }`}
                   >
                     {added ? "Added" : "Add"}
@@ -266,7 +269,7 @@ export default function PlanBuilder({
                   <div className="flex min-w-0 gap-3">
                     <span
                       className="mt-1 h-3 w-3 shrink-0 rounded-full"
-                      style={{ backgroundColor: colorFor(s.key) }}
+                      style={{ backgroundColor: plannedColors.get(s.key) }}
                     />
                     <div className="min-w-0">
                       <p className="text-sm">
@@ -305,7 +308,7 @@ export default function PlanBuilder({
               type="button"
               onClick={saveToPlan}
               disabled={saving}
-              className="w-full rounded-full bg-rose-700 py-2.5 text-sm font-semibold uppercase tracking-wide text-white shadow hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-full bg-gray-900 py-2.5 text-sm font-semibold uppercase tracking-wide text-white shadow hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? "Saving…" : "Save to My Plan"}
             </button>

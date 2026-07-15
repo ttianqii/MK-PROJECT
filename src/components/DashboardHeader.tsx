@@ -6,8 +6,7 @@ import LogoutButton from "./LogoutButton";
 
 const NAV = [
   { href: "/dashboard", label: "Study Plan" },
-  { href: "/dashboard/plan", label: "Plan next term" },
-  { href: "/dashboard/plans", label: "My Plan" },
+  { href: "/dashboard/plan", label: "My Plan" },
   { href: "/dashboard/registration", label: "Registration Result" },
 ];
 
@@ -26,7 +25,11 @@ export default function DashboardHeader({ username }: { username: string }) {
         </div>
         <nav className="-mx-1 mt-1 flex items-center gap-1 overflow-x-auto px-1 pb-2">
           {NAV.map((item) => {
-            const active = pathname === item.href;
+            // Prefix match keeps "My Plan" lit on its /builder subpage.
+            const active =
+              item.href === "/dashboard"
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}

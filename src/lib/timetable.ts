@@ -146,17 +146,18 @@ export function detectConflicts(planned: PlanSection[]): ConflictResult {
   return { timeSet, dupSet, all: new Set([...timeSet, ...dupSet]) };
 }
 
-// Solid block colors, echoing the reference design (pink, blue, orange, …).
+// Solid block colors in the reference design's order (blue, green, orange,
+// purple, yellow, red, …) so every section in a schedule gets a distinct hue.
 const PALETTE = [
-  "#E11D62",
   "#2E86D6",
-  "#E8842B",
-  "#C43D3D",
-  "#E0A82E",
   "#3DA83D",
-  "#C97B5A",
-  "#2AA79B",
+  "#E8842B",
   "#8E5AC9",
+  "#E0A82E",
+  "#C43D3D",
+  "#2AA79B",
+  "#E11D62",
+  "#C97B5A",
   "#7A8290",
 ];
 
@@ -165,4 +166,13 @@ export function colorFor(key: string): string {
   let h = 0;
   for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
   return PALETTE[Math.abs(h) % PALETTE.length];
+}
+
+/**
+ * Palette colors assigned by position, like the reference: the schedule's
+ * first section is blue, the second green, and so on — never two the same
+ * until the palette runs out.
+ */
+export function sectionColors(sections: PlanSection[]): Map<string, string> {
+  return new Map(sections.map((s, i) => [s.key, PALETTE[i % PALETTE.length]]));
 }

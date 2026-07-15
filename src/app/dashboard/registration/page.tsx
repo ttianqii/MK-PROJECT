@@ -5,9 +5,9 @@ import { getRegistration, getStudentByUsername } from "@/lib/planQueries";
 import { getSchedule } from "@/lib/scheduleQueries";
 import {
   DAYS,
-  colorFor,
   formatMinutes,
   groupSections,
+  sectionColors,
   type PlanSection,
 } from "@/lib/timetable";
 import DashboardHeader from "@/components/DashboardHeader";
@@ -42,6 +42,7 @@ export default async function RegistrationResultPage() {
   const sections: PlanSection[] = (registration?.sectionKeys ?? [])
     .map((k) => byKey.get(k))
     .filter((x): x is PlanSection => Boolean(x));
+  const colors = sectionColors(sections);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -75,7 +76,7 @@ export default async function RegistrationResultPage() {
             <p className="text-gray-600">You haven&apos;t registered a schedule yet.</p>
             <p className="mt-1 text-sm text-gray-400">
               Save a schedule in{" "}
-              <Link href="/dashboard/plans" className="font-medium text-blue-600 hover:underline">
+              <Link href="/dashboard/plan" className="font-medium text-blue-600 hover:underline">
                 My Plan
               </Link>{" "}
               and press REGISTER.
@@ -100,7 +101,7 @@ export default async function RegistrationResultPage() {
                 >
                   <span
                     className="absolute left-0 top-4 bottom-4 w-1.5 rounded-r"
-                    style={{ backgroundColor: colorFor(s.key) }}
+                    style={{ backgroundColor: colors.get(s.key) }}
                     aria-hidden="true"
                   />
                   <div className="pl-3">

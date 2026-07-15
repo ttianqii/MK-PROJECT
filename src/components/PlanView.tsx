@@ -127,6 +127,15 @@ export default function PlanView({
 
       {/* Plan name + updated at */}
       <div className="mt-5 flex items-center gap-3">
+        <Link
+          href="/dashboard/plan/builder"
+          className="order-last ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-gray-700"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          Plan
+        </Link>
         {editing ? (
           <input
             autoFocus
@@ -168,11 +177,8 @@ export default function PlanView({
           <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center">
             <p className="text-gray-600">No saved schedules yet.</p>
             <p className="mt-1 text-sm text-gray-400">
-              Build one in{" "}
-              <Link href="/dashboard/plan" className="font-medium text-blue-600 hover:underline">
-                Plan next term
-              </Link>{" "}
-              and press “Save to My Plan”.
+              Press the <span className="font-semibold text-gray-600">+ Plan</span> button above to
+              build one, then “Save to My Plan”.
             </p>
           </div>
         ) : (
