@@ -8,7 +8,6 @@ import type { ScheduleData } from "@/lib/scheduleQueries";
 import type { RecommendedCourse, Eligibility } from "@/lib/recommendations";
 import {
   detectConflicts,
-  formatMinutes,
   groupCourses,
   groupSections,
   sectionColors,
@@ -18,23 +17,9 @@ import {
 import TimetableGrid from "./TimetableGrid";
 import EditableTitle from "./EditableTitle";
 import ScheduleCard from "./ScheduleCard";
+import { MeetingRows } from "./SubjectDetailCard";
 
 const STORAGE_KEY = "sp:nextTermPlan";
-const DAY_ABBR: Record<string, string> = {
-  Sunday: "Sun",
-  Monday: "Mon",
-  Tuesday: "Tue",
-  Wednesday: "Wed",
-  Thursday: "Thu",
-  Friday: "Fri",
-  Saturday: "Sat",
-};
-
-function meetingLabel(s: PlanSection): string {
-  return s.meetings
-    .map((m) => `${DAY_ABBR[m.day] ?? m.day} ${formatMinutes(m.startMin)}–${formatMinutes(m.endMin)} · ${m.room}`)
-    .join("  •  ");
-}
 
 interface StoredPlan {
   subjects: string[];
@@ -72,9 +57,9 @@ function loadStored(): StoredPlan {
 type SheetTab = "recommend" | "needed" | "search";
 
 const SHEET_TABS: { id: SheetTab; label: string }[] = [
-  { id: "recommend", label: "Recommend" },
+  { id: "recommend", label: "แนะนำ" },
   { id: "needed", label: "วิชาที่ยังขาด" },
-  { id: "search", label: "Search" },
+  { id: "search", label: "ค้นหา" },
 ];
 
 export default function PlanBuilder({
@@ -295,56 +280,70 @@ export default function PlanBuilder({
               return (
                 <li
                   key={code}
-                  className={`flex items-stretch justify-between gap-2 rounded-lg border bg-white ${
-                    chosenSec ? "border-gray-200" : "border-amber-300 bg-amber-50/40"
+                  className={`relative rounded-2xl bg-white p-4 shadow-sm ring-1 ${
+                    chosenSec ? "ring-gray-100" : "bg-amber-50/40 ring-amber-200"
                   }`}
                 >
                   <button
                     type="button"
                     onClick={() => setPickerCode(code)}
                     aria-label={chosenSec ? `Change section for ${code}` : `Choose a section for ${code}`}
-                    className="flex min-w-0 flex-1 items-center gap-3 rounded-l-lg p-3 text-left hover:bg-gray-50"
+                    className="block w-full text-left"
                   >
-                    <span
-                      className="h-3 w-3 shrink-0 rounded-full"
-                      style={{ backgroundColor: chosenSec ? plannedColors.get(chosenSec.key) : "#F59E0B" }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm">
-                        <span className="font-mono font-semibold text-gray-900">{code}</span>
-                        {chosenSec?.section ? (
-                          <span className="ml-2 text-gray-500">S.{chosenSec.section}</span>
-                        ) : null}
-                        {dupSet.has(chosenSec?.key ?? "") ? (
-                          <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
-                            ซ้ำ
-                          </span>
-                        ) : null}
-                        {timeSet.has(chosenSec?.key ?? "") ? (
-                          <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
-                            เวลาชนกัน
-                          </span>
-                        ) : null}
-                      </p>
-                      <p className="truncate text-xs text-gray-500">{course?.courseName ?? code}</p>
-                      {/* Subtitle: chosen section meeting (tap to change), or a prompt to choose */}
-                      {chosenSec ? (
-                        <p className="mt-1 text-xs text-gray-400">
-                          {meetingLabel(chosenSec)}
-                          <span className="ml-1 font-medium text-orange-500">· แตะเพื่อเปลี่ยน</span>
+                    {/* Header with accent line (header only) */}
+                    <div className="flex gap-3">
+                      <span
+                        className="w-1 shrink-0 self-stretch rounded-full"
+                        style={{ backgroundColor: chosenSec ? plannedColors.get(chosenSec.key) : "#F59E0B" }}
+                        aria-hidden="true"
+                      />
+                      <div className="min-w-0 flex-1 pr-6">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="font-mono text-base font-bold text-gray-900">{code}</span>
+                          {chosenSec?.section ? (
+                            <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                              Section {chosenSec.section}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="mt-0.5 truncate text-xs font-medium uppercase text-gray-600">
+                          {course?.courseName ?? code}
                         </p>
-                      ) : (
-                        <p className="mt-1 text-xs font-semibold text-amber-600">
-                          ⚠ เลือก section — มี {sectionCount} section
-                        </p>
-                      )}
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                          {dupSet.has(chosenSec?.key ?? "") ? (
+                            <span className="rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
+                              ซ้ำ
+                            </span>
+                          ) : null}
+                          {timeSet.has(chosenSec?.key ?? "") ? (
+                            <span className="rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
+                              เวลาชนกัน
+                            </span>
+                          ) : null}
+                          {chosenSec ? (
+                            <span className="text-xs font-medium text-orange-500">แตะเพื่อเปลี่ยน section</span>
+                          ) : (
+                            <span className="text-xs font-semibold text-amber-600">
+                              ⚠ เลือก section — มี {sectionCount} section
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Day / time / building rows when a section is chosen */}
+                    {chosenSec ? (
+                      <div className="mt-3 pl-4">
+                        <MeetingRows meetings={chosenSec.meetings} />
+                      </div>
+                    ) : null}
                   </button>
+
                   <button
                     type="button"
                     onClick={() => removeSubject(code)}
                     aria-label={`Remove ${code}`}
-                    className="shrink-0 rounded-r-lg px-3 text-sm text-gray-400 hover:bg-gray-100 hover:text-red-600"
+                    className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full text-sm text-gray-400 hover:bg-gray-100 hover:text-red-600"
                   >
                     ✕
                   </button>
@@ -633,19 +632,17 @@ function SubjectRow({
           <span className="font-mono font-semibold text-gray-900">{code}</span>
           {grade ? (
             <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700">
-              {/^W$/i.test(grade) ? "withdrawn (W)" : `retake ${grade}`}
+              {/^W$/i.test(grade) ? "ถอน (W)" : `เรียนซ้ำ ${grade}`}
             </span>
           ) : null}
         </p>
         <p className="truncate text-xs text-gray-500">{name}</p>
         <p className="mt-0.5 text-xs text-gray-400">
-          {offered
-            ? `${sectionCount} section`
-            : "ไม่เปิดสอนเทอมนี้"}
+          {offered ? `มี ${sectionCount} section` : "ไม่เปิดสอนเทอมนี้"}
         </p>
         {prereq.length > 0 ? (
           <p className={`mt-0.5 text-xs ${prereqMet ? "text-gray-400" : "text-amber-600"}`}>
-            prereq: {prereq.join(", ")}
+            ต้องผ่านก่อน: {prereq.join(", ")}
             {prereqMet ? " ✓" : " (ยังไม่ผ่าน)"}
           </p>
         ) : null}
@@ -662,7 +659,7 @@ function SubjectRow({
               : "bg-gray-900 text-white hover:bg-gray-700"
         }`}
       >
-        {added ? "Added ✓" : blocked ? "—" : "Add +"}
+        {added ? "เพิ่มแล้ว ✓" : blocked ? "—" : "เพิ่ม +"}
       </button>
     </li>
   );
