@@ -1,0 +1,34 @@
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: mkproject
+      MARIADB_USER: mk
+      MARIADB_PASSWORD: mkpassword
+      MARIADB_ROOT_PASSWORD: mkroot
+    ports:
+      # Exposed on localhost only, so `npm run dev` / drizzle-kit can reach it.
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql://mk:mkpassword@db:3306/mkproject
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-change-me}
+    ports:
+      - "3000:3000"
+
+volumes:
+  db-data:
