@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import PopUpAlert from "./PopUpAlert";
+import BottomSheet from "./BottomSheet";
 import type { ScheduleData } from "@/lib/scheduleQueries";
 import type { RecommendedCourse } from "@/lib/recommendations";
 import {
@@ -90,42 +91,6 @@ export default function PlanBuilder({
   const [query, setQuery] = useState("");
   const [pickerCode, setPickerCode] = useState<string | null>(null);
 
-  // Drag-to-resize sheet. Height is a fixed vh so both tabs stay the same
-  // height (Search doesn't shrink to fit its lone input), and the grab handle
-  // lets the user drag the sheet taller/shorter — or flick it down to close.
-  const DEFAULT_SHEET_VH = 72;
-  const MIN_SHEET_VH = 35;
-  const MAX_SHEET_VH = 92;
-  const [sheetVh, setSheetVh] = useState(DEFAULT_SHEET_VH);
-  const dragRef = useRef<{ startY: number; startVh: number } | null>(null);
-
-  const openSheet = () => {
-    setSheetVh(DEFAULT_SHEET_VH);
-    setSheetOpen(true);
-  };
-
-  const onHandleDown = (e: React.PointerEvent) => {
-    dragRef.current = { startY: e.clientY, startVh: sheetVh };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-  const onHandleMove = (e: React.PointerEvent) => {
-    if (!dragRef.current) return;
-    const dyVh = ((e.clientY - dragRef.current.startY) / window.innerHeight) * 100;
-    // Dragging up (dy < 0) grows the sheet; down shrinks it.
-    setSheetVh(Math.max(MIN_SHEET_VH, Math.min(MAX_SHEET_VH, dragRef.current.startVh - dyVh)));
-  };
-  const onHandleUp = (e: React.PointerEvent) => {
-    const wasDragging = dragRef.current !== null;
-    dragRef.current = null;
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      /* pointer already released */
-    }
-    // Dragged down to the minimum → treat as a dismiss.
-    if (wasDragging && sheetVh <= MIN_SHEET_VH + 2) setSheetOpen(false);
-  };
-
   // Load / persist the plan in localStorage.
   useEffect(() => {
     // Hydrate from localStorage after mount (it's unreadable during SSR, so the
@@ -144,24 +109,10 @@ export default function PlanBuilder({
 
   // The bottom-nav "+" (see DashboardHeader) opens the sheet via this event.
   useEffect(() => {
-    const open = () => {
-      setSheetVh(DEFAULT_SHEET_VH);
-      setSheetOpen(true);
-    };
+    const open = () => setSheetOpen(true);
     window.addEventListener("mk:add-subject", open);
     return () => window.removeEventListener("mk:add-subject", open);
   }, []);
-
-  // Escape closes the picker first, then the sheet.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (pickerCode) setPickerCode(null);
-      else if (sheetOpen) setSheetOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [pickerCode, sheetOpen]);
 
   const planned = useMemo(
     () =>
@@ -260,7 +211,7 @@ export default function PlanBuilder({
           </h2>
           <button
             type="button"
-            onClick={openSheet}
+            onClick={() => setSheetOpen(true)}
             className="inline-flex items-center gap-1.5 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-gray-700"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
@@ -357,71 +308,50 @@ export default function PlanBuilder({
       </section>
 
       {/* ── Add-subject slide-up sheet ─────────────────────────────────────── */}
-      <div
-        className={`fixed inset-0 z-40 ${sheetOpen ? "" : "pointer-events-none"}`}
-        aria-hidden={!sheetOpen}
+      <BottomSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        ariaLabel="Add subject"
+        detents={[50, 82]}
+        initial={82}
+        header={
+          <>
+            <div className="flex items-center justify-between px-5 pb-3 pt-1">
+              <h2 className="text-lg font-bold text-gray-900">Add subject</h2>
+              <button
+                type="button"
+                onClick={() => setSheetOpen(false)}
+                aria-label="Close"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            {/* Tabs */}
+            <div className="mx-5 mb-3 grid grid-cols-2 gap-1 rounded-full bg-gray-100 p-1 text-sm font-semibold">
+              <button
+                type="button"
+                onClick={() => setTab("recommend")}
+                className={`rounded-full py-2 transition-colors ${
+                  tab === "recommend" ? "bg-rose-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Recommend
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("search")}
+                className={`rounded-full py-2 transition-colors ${
+                  tab === "search" ? "bg-rose-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Search
+              </button>
+            </div>
+          </>
+        }
       >
-        <div
-          onClick={() => setSheetOpen(false)}
-          className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ${
-            sheetOpen ? "opacity-100" : "opacity-0"
-          }`}
-        />
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Add subject"
-          style={{ height: `${sheetVh}vh` }}
-          className={`absolute inset-x-0 bottom-0 mx-auto flex w-full max-w-xl flex-col rounded-t-3xl bg-white shadow-2xl transition-transform duration-300 ease-out ${
-            sheetOpen ? "translate-y-0" : "translate-y-full"
-          }`}
-        >
-          {/* Drag handle: slide up/down to resize, or flick down to close */}
-          <div
-            onPointerDown={onHandleDown}
-            onPointerMove={onHandleMove}
-            onPointerUp={onHandleUp}
-            role="separator"
-            aria-label="Resize sheet"
-            className="flex shrink-0 cursor-ns-resize touch-none justify-center pb-1 pt-3"
-          >
-            <span className="h-1.5 w-10 rounded-full bg-gray-300" />
-          </div>
-          <div className="flex items-center justify-between px-5 pb-3 pt-2">
-            <h2 className="text-lg font-bold text-gray-900">Add subject</h2>
-            <button
-              type="button"
-              onClick={() => setSheetOpen(false)}
-              aria-label="Close"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Tabs */}
-          <div className="mx-5 mb-3 grid grid-cols-2 gap-1 rounded-full bg-gray-100 p-1 text-sm font-semibold">
-            <button
-              type="button"
-              onClick={() => setTab("recommend")}
-              className={`rounded-full py-2 transition-colors ${
-                tab === "recommend" ? "bg-rose-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Recommend
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("search")}
-              className={`rounded-full py-2 transition-colors ${
-                tab === "search" ? "bg-rose-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Search
-            </button>
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
+          <div className="px-5 pb-8">
             {tab === "recommend" ? (
               recommendations.length === 0 ? (
                 <p className="py-8 text-center text-sm text-gray-500">
@@ -491,24 +421,18 @@ export default function PlanBuilder({
               </div>
             )}
           </div>
-        </div>
-      </div>
+      </BottomSheet>
 
-      {/* ── Section picker popup ───────────────────────────────────────────── */}
-      {pickerCode && pickerCourse ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-          <div
-            onClick={() => setPickerCode(null)}
-            className="absolute inset-0 bg-black/40"
-            aria-hidden="true"
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Choose a section for ${pickerCode}`}
-            className="relative flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl"
-          >
-            <header className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
+      {/* ── Section picker sheet ───────────────────────────────────────────── */}
+      <BottomSheet
+        open={Boolean(pickerCode && pickerCourse)}
+        onClose={() => setPickerCode(null)}
+        ariaLabel={pickerCode ? `Choose a section for ${pickerCode}` : undefined}
+        detents={[50, 82]}
+        initial={82}
+        header={
+          pickerCourse ? (
+            <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 pb-3">
               <div className="min-w-0">
                 <p className="font-mono text-base font-bold text-gray-900">{pickerCode}</p>
                 <p className="truncate text-sm text-gray-500">{pickerCourse.courseName}</p>
@@ -522,10 +446,13 @@ export default function PlanBuilder({
               >
                 ✕
               </button>
-            </header>
-
-            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
-              {pickerCourse.sections.map((sec) => {
+            </div>
+          ) : null
+        }
+      >
+        {pickerCode && pickerCourse ? (
+          <div className="space-y-2 p-4">
+            {pickerCourse.sections.map((sec) => {
                 const seats = sectionSeats(sec);
                 const isChosen = chosen[pickerCode] === sec.key;
                 const availPct = Math.round((seats.available / seats.total) * 100);
@@ -569,11 +496,10 @@ export default function PlanBuilder({
                     </div>
                   </button>
                 );
-              })}
-            </div>
+            })}
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </BottomSheet>
     </div>
   );
 }
