@@ -11,7 +11,7 @@ export default function ScheduleCard({
   className?: string;
 }) {
   return (
-    <section className={`rounded-2xl bg-white p-4 shadow-sm sm:p-5 ${className}`}>
+    <section className={`rounded-2xl bg-white p-3 shadow-sm sm:p-4 ${className}`}>
       {children}
     </section>
   );

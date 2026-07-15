@@ -19,10 +19,10 @@ interface Placed {
   conflict: boolean;
 }
 
-const LANE_H = 26; // px per stacked block
-const LANE_GAP = 4;
-const ROW_PAD = 9;
-const LABEL_W = 56; // px, day-label gutter
+const LANE_H = 15; // px per stacked block — compact so two schedule cards fit one screen
+const LANE_GAP = 2;
+const ROW_PAD = 4;
+const LABEL_W = 34; // px, day-label gutter — kept tight so more width goes to the grid on phones
 const DAY_START = 480; // 08:00, first column
 const DAY_END = 1200; // 20:00, last column — covers the latest real class end (19:20)
 const TICK = 90; // column width in minutes
@@ -101,94 +101,95 @@ export default function TimetableGrid({
   const colors = useMemo(() => sectionColors(sections), [sections]);
 
   return (
-    <div className="overflow-x-auto">
-      {/* Time header + day rows; the ScheduleCard wrapping this already
-          supplies the white background and padding, so no chrome here. */}
-      <div className="min-w-80">
-        {/* Time header */}
-        <div className="flex" style={{ paddingLeft: LABEL_W }}>
-          <div className="relative h-6 flex-1">
-            {ticks.map((t) => (
+    // Fluid width — no forced min-width/scroll, so the whole grid scales
+    // down to fit narrow phones instead of overflowing.
+    <div>
+      {/* Time header. Every column still gets a gridline below; on very
+          narrow screens only every other time label is shown (always
+          keeping the first/last) so the text can't overlap itself. */}
+      <div className="flex" style={{ paddingLeft: LABEL_W }}>
+        <div className="relative h-4 flex-1">
+          {ticks.map((t, i) => {
+            const isEdge = i === 0 || t === end;
+            return (
               <span
                 key={t}
-                className={`absolute text-[10px] font-medium text-gray-500 sm:text-xs ${
+                className={`absolute text-[7px] font-medium text-gray-500 sm:text-[9px] ${
                   t === end ? "" : "-translate-x-1/2"
-                }`}
+                } ${!isEdge && i % 2 === 1 ? "max-[420px]:hidden" : ""}`}
                 style={t === end ? { right: 0 } : { left: pctLeft(t) }}
               >
                 {formatMinutes(t)}
               </span>
-            ))}
-          </div>
+            );
+          })}
         </div>
-
-        {/* Day rows */}
-        {rows.map(({ day, placed, lanes }, rowIdx) => {
-          const rowH = lanes * LANE_H + (lanes - 1) * LANE_GAP + ROW_PAD * 2;
-          return (
-            <div
-              key={day.full}
-              className={`flex items-stretch border-t border-gray-300/70 ${
-                rowIdx === rows.length - 1 ? "border-b" : ""
-              }`}
-            >
-              <div
-                className="flex items-center justify-center text-center text-xs font-semibold tracking-wide text-gray-700"
-                style={{ width: LABEL_W }}
-              >
-                {day.short}
-              </div>
-              <div className="relative flex-1" style={{ height: rowH }}>
-                {/* Vertical gridlines, one per column boundary (skip the
-                    right edge so the table isn't closed off on that side) */}
-                {ticks
-                  .filter((t) => t !== end)
-                  .map((t) => (
-                    <div
-                      key={t}
-                      className="absolute top-0 bottom-0 border-l border-gray-300/70"
-                      style={{ left: pctLeft(t) }}
-                    />
-                  ))}
-                {/* Class blocks: clean colored pills, details in the tooltip */}
-                {placed.map((p, i) => {
-                  const color = colors.get(p.section.key) ?? "#7A8290";
-                  // When the parent supplies conflict keys (time + duplicate
-                  // course), let them drive the outline; otherwise fall back to
-                  // this grid's own time-overlap detection.
-                  const isConflict = conflictKeys
-                    ? conflictKeys.has(p.section.key)
-                    : p.conflict;
-                  return (
-                    <div
-                      key={i}
-                      title={`${p.section.courseCode}${p.section.section ? ` (${p.section.section})` : ""} · ${p.section.courseName}\n${formatMinutes(p.startMin)}–${formatMinutes(p.endMin)} · ${p.room}${isConflict ? "\n⚠ conflict" : ""}`}
-                      className="absolute rounded-full"
-                      style={{
-                        left: `calc(${pctLeft(p.startMin)} + 2px)`,
-                        width: `calc(${pctWidth(p.startMin, p.endMin)} - 4px)`,
-                        top: ROW_PAD + p.lane * (LANE_H + LANE_GAP),
-                        height: LANE_H,
-                        backgroundColor: color,
-                        outline: isConflict ? "2px solid #DC2626" : undefined,
-                        outlineOffset: isConflict ? "1px" : undefined,
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
       </div>
+
+      {/* Day rows */}
+      {rows.map(({ day, placed, lanes }, rowIdx) => {
+        const rowH = lanes * LANE_H + (lanes - 1) * LANE_GAP + ROW_PAD * 2;
+        return (
+          <div
+            key={day.full}
+            className={`flex items-stretch border-t border-gray-300/70 ${
+              rowIdx === rows.length - 1 ? "border-b" : ""
+            }`}
+          >
+            <div
+              className="flex items-center justify-center text-center text-[9px] font-semibold tracking-wide text-gray-700 sm:text-[10px]"
+              style={{ width: LABEL_W }}
+            >
+              {day.short}
+            </div>
+            <div className="relative flex-1" style={{ height: rowH }}>
+              {/* Vertical gridlines, one per column boundary (skip the
+                  right edge so the table isn't closed off on that side) */}
+              {ticks
+                .filter((t) => t !== end)
+                .map((t) => (
+                  <div
+                    key={t}
+                    className="absolute top-0 bottom-0 border-l border-gray-300/70"
+                    style={{ left: pctLeft(t) }}
+                  />
+                ))}
+              {/* Class blocks: clean colored pills, details in the tooltip */}
+              {placed.map((p, i) => {
+                const color = colors.get(p.section.key) ?? "#7A8290";
+                // When the parent supplies conflict keys (time + duplicate
+                // course), let them drive the outline; otherwise fall back to
+                // this grid's own time-overlap detection.
+                const isConflict = conflictKeys ? conflictKeys.has(p.section.key) : p.conflict;
+                return (
+                  <div
+                    key={i}
+                    title={`${p.section.courseCode}${p.section.section ? ` (${p.section.section})` : ""} · ${p.section.courseName}\n${formatMinutes(p.startMin)}–${formatMinutes(p.endMin)} · ${p.room}${isConflict ? "\n⚠ conflict" : ""}`}
+                    className="absolute rounded-full"
+                    style={{
+                      left: `calc(${pctLeft(p.startMin)} + 2px)`,
+                      width: `calc(${pctWidth(p.startMin, p.endMin)} - 4px)`,
+                      top: ROW_PAD + p.lane * (LANE_H + LANE_GAP),
+                      height: LANE_H,
+                      backgroundColor: color,
+                      outline: isConflict ? "2px solid #DC2626" : undefined,
+                      outlineOffset: isConflict ? "1px" : undefined,
+                    }}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
 
       {/* Legend: one seat chip per planned section */}
       {sections.length > 0 ? (
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-1.5">
           {sections.map((s) => (
             <span
               key={s.key}
-              className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700"
+              className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700"
               title={`${s.courseCode}${s.section ? ` (${s.section})` : ""} · seats: ${s.capacity ?? "—"}`}
             >
               <SeatIcon color={colors.get(s.key) ?? "#7A8290"} />
@@ -203,7 +204,7 @@ export default function TimetableGrid({
 
 function SeatIcon({ color }: { color: string }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style={{ color }}>
+    <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" style={{ color }}>
       <path d="M0 0h24v24H0z" fill="none" />
       <rect width="12" height="10" x="6" y="2" fill="currentColor" rx="1" ry="1" />
       <path
