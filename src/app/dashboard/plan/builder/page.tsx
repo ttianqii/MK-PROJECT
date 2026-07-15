@@ -31,7 +31,7 @@ export default async function PlanBuilderPage() {
         student={{ studentId: student.studentId, nameEn: student.nameEn, photo: student.photo }}
       />
 
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 md:pb-8">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-gray-900">Plan next term</h1>
           <p className="mt-1 text-sm text-gray-500">

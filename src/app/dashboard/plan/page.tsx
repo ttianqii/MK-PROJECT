@@ -37,7 +37,7 @@ export default async function PlanPage() {
         student={{ studentId: student.studentId, nameEn: student.nameEn, photo: student.photo }}
       />
 
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 md:pb-8">
         <PlanView updatedAt={plan.updatedAt.toISOString()} schedules={resolved} />
       </main>
     </div>

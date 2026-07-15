@@ -50,7 +50,7 @@ export default async function RegistrationResultPage() {
         student={{ studentId: student.studentId, nameEn: student.nameEn, photo: student.photo }}
       />
 
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 md:pb-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-3xl font-light uppercase tracking-wide text-gray-900">
             Registration Result
