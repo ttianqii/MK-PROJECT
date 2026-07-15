@@ -157,31 +157,60 @@ const ROOMS = {
   LAB1: 30,
   LAB2: 30,
 };
+const ROOM_KEYS = Object.keys(ROOMS);
+
+// The registrar's real daily periods: a 1hr20min lunch break after period 1,
+// 10-min passing breaks between the rest.
+const PERIODS = [
+  ["8.40", "11.00"],
+  ["12.00", "14.20"],
+  ["14.30", "16.50"],
+  ["17.00", "19.20"],
+];
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+// Every (day, period) pair — 24 total — so each course's sections can be
+// spread across distinct day/time combinations instead of clustering.
+const COMBOS = DAYS.flatMap((day) => PERIODS.map((period) => [day, period]));
+
+const SECTION_LETTERS = ["A", "B", "C", "D", "E"];
+
+// [code, name, section-number prefix]. Five sections are generated per
+// course below, each on a different day and (mostly) a different period.
+const COURSES = [
+  ["CS301", "Operating Systems", "421"],
+  ["CS302", "Software Engineering", "422"],
+  ["CS303", "Computer Networks", "423"],
+  ["CS304", "Web Application Development", "424"],
+  ["CS305", "Theory of Computation", "425"],
+  ["CS401", "Senior Project I", "481"],
+  ["CS311", "Mobile Application Development", "431"],
+  ["CS312", "Machine Learning Fundamentals", "432"],
+  ["CS313", "Cloud Computing", "433"],
+  ["CS314", "Introduction to Cybersecurity", "434"],
+  ["JP101", "Japanese I", "101"],
+  // Filler courses from other programs, for browsing/search.
+  ["EN305", "Business English", "331"],
+  ["MK201", "Principles of Marketing", "251"],
+  ["MA201", "Linear Algebra", "271"],
+  ["GE210", "Mindfulness and Modern Life", "111"],
+  ["BA210", "Business Statistics", "261"],
+];
+
+/** 5 sections for one course, each on its own (day, period, room). */
+function genSections(courseIndex, code, name, prefix) {
+  // 5 is coprime with the 24 combos, so 5 consecutive steps from any
+  // offset never repeat — every section lands on a distinct day+period.
+  const offset = (courseIndex * 7) % COMBOS.length;
+  return SECTION_LETTERS.map((letter, s) => {
+    const [day, [start, end]] = COMBOS[(offset + s * 5) % COMBOS.length];
+    const room = ROOM_KEYS[(courseIndex + s) % ROOM_KEYS.length];
+    return [code, name, `${prefix}${letter}`, [[day, start, end, room]]];
+  });
+}
 
 // [code, name, section, [day, start, end, room][]]
-const SECTIONS = [
-  ["CS301", "Operating Systems", "421A", [["Monday", "9.00", "10.30", "A301"], ["Wednesday", "9.00", "10.30", "A301"]]],
-  ["CS301", "Operating Systems", "421B", [["Tuesday", "13.00", "14.30", "A302"], ["Thursday", "13.00", "14.30", "A302"]]],
-  ["CS302", "Software Engineering", "421A", [["Monday", "10.40", "12.10", "B205"], ["Wednesday", "10.40", "12.10", "B205"]]],
-  ["CS302", "Software Engineering", "421B", [["Friday", "9.00", "12.00", "B206"]]],
-  ["CS303", "Computer Networks", "421A", [["Tuesday", "9.00", "10.30", "A301"], ["Thursday", "9.00", "10.30", "A301"]]],
-  ["CS304", "Web Application Development", "421A", [["Monday", "13.00", "16.00", "LAB1"]]],
-  ["CS304", "Web Application Development", "421B", [["Wednesday", "13.00", "16.00", "LAB1"]]],
-  ["CS305", "Theory of Computation", "421A", [["Friday", "13.00", "14.30", "A302"]]],
-  ["CS401", "Senior Project I", "421A", [["Friday", "15.00", "17.00", "B205"]]],
-  ["CS311", "Mobile Application Development", "421A", [["Monday", "13.00", "16.00", "LAB2"]]],
-  ["CS312", "Machine Learning Fundamentals", "421A", [["Tuesday", "10.40", "12.10", "C101"], ["Thursday", "10.40", "12.10", "C101"]]],
-  ["CS313", "Cloud Computing", "421A", [["Wednesday", "13.00", "16.00", "LAB2"]]],
-  ["CS314", "Introduction to Cybersecurity", "421A", [["Thursday", "13.00", "16.00", "LAB2"]]],
-  ["JP101", "Japanese I", "101A", [["Saturday", "9.00", "12.00", "C101"]]],
-  ["JP101", "Japanese I", "101B", [["Tuesday", "16.00", "17.30", "B206"], ["Thursday", "16.00", "17.30", "B206"]]],
-  // Filler courses from other programs, for browsing/search.
-  ["EN305", "Business English", "331A", [["Monday", "10.40", "12.10", "C101"]]],
-  ["MK201", "Principles of Marketing", "251A", [["Saturday", "13.00", "16.00", "C101"]]],
-  ["MA201", "Linear Algebra", "271A", [["Tuesday", "8.40", "10.10", "B205"], ["Friday", "8.40", "10.10", "B205"]]],
-  ["GE210", "Mindfulness and Modern Life", "111A", [["Wednesday", "16.00", "17.30", "A301"]]],
-  ["BA210", "Business Statistics", "261A", [["Monday", "16.00", "17.30", "A302"], ["Thursday", "16.00", "17.30", "A302"]]],
-];
+const SECTIONS = COURSES.flatMap(([code, name, prefix], i) => genSections(i, code, name, prefix));
 
 // ── Seeding ──────────────────────────────────────────────────────────────────
 
@@ -238,13 +267,25 @@ if (existing.length > 0) {
   console.log(`Seeded student "${STUDENT.username}" (password: ${STUDENT.password}) with checklist.`);
 }
 
+// class_schedule is pure catalog data (not user-owned), so replace this
+// campus/semester's rows outright rather than INSERT IGNORE — otherwise a
+// re-run after editing SECTIONS above would leave stale rows mixed in
+// alongside the new ones instead of actually updating the offering.
+const [deleted] = await connection.execute(
+  "DELETE FROM class_schedule WHERE campus = ? AND semester = ?",
+  [CAMPUS, SEMESTER]
+);
+if (deleted.affectedRows > 0) {
+  console.log(`Cleared ${deleted.affectedRows} existing class_schedule row(s) for this term.`);
+}
+
 let inserted = 0;
 let slots = 0;
 for (const [code, name, section, meetings] of SECTIONS) {
   for (const [day, start, end, room] of meetings) {
     slots++;
     const [res] = await connection.execute(
-      `INSERT IGNORE INTO class_schedule
+      `INSERT INTO class_schedule
          (campus, semester, day, room, room_capacity, start_time, end_time,
           course_code, course_name, section)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,

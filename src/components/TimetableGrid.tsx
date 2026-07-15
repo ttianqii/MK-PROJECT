@@ -8,10 +8,10 @@ import {
   type PlanSection,
 } from "@/lib/timetable";
 
-// A meeting positioned onto the grid, carrying its owning section + lane.
+// A meeting positioned onto one period column, carrying its owning section
+// (clipped to that period's bounds) + stacking lane.
 interface Placed {
   section: PlanSection;
-  day: string;
   startMin: number;
   endMin: number;
   room: string;
@@ -23,11 +23,19 @@ const LANE_H = 26; // px per stacked block
 const LANE_GAP = 4;
 const ROW_PAD = 9;
 const LABEL_W = 56; // px, day-label gutter
-const DAY_START = 540; // 09:00, first column of the reference design
-const DAY_END = 1260; // 21:00, last column
-const TICK = 90; // column width in minutes
 
-/** Assign overlapping meetings on a day to stacked lanes (interval graph). */
+// The registrar's real daily periods (minutes since midnight): a 1hr20min
+// lunch break after period 1, 10-min passing breaks between the rest. The
+// grid renders one column per period rather than a continuous minute-scale
+// axis, so those short passing breaks don't need their own cramped tick.
+const PERIODS: [number, number][] = [
+  [520, 660], // 8:40–11:00
+  [720, 860], // 12:00–14:20
+  [870, 1010], // 14:30–16:50
+  [1020, 1160], // 17:00–19:20
+];
+
+/** Assign overlapping meetings within one period to stacked lanes. */
 function assignLanes(items: Omit<Placed, "lane" | "conflict">[]): Placed[] {
   const sorted = [...items].sort((a, b) => a.startMin - b.startMin);
   const laneEnds: number[] = [];
@@ -62,68 +70,50 @@ export default function TimetableGrid({
   sections: PlanSection[];
   conflictKeys?: Set<string>;
 }) {
-  const { start, end, ticks, rows } = useMemo(() => {
-    const allMeetings = sections.flatMap((s) => s.meetings);
-    const minStart = allMeetings.length ? Math.min(...allMeetings.map((m) => m.startMin)) : 540;
-    const maxEnd = allMeetings.length ? Math.max(...allMeetings.map((m) => m.endMin)) : 1260;
+  const rows = useMemo(
+    () =>
+      DAYS.map((d) => {
+        const dayMeetings = sections.flatMap((s) =>
+          s.meetings
+            .filter((m) => m.day === d.full)
+            .map((m) => ({ section: s, startMin: m.startMin, endMin: m.endMin, room: m.room }))
+        );
 
-    // The reference's fixed 09:00–21:00 window, extended by whole columns
-    // only when a class falls outside it.
-    const start = DAY_START - Math.max(0, Math.ceil((DAY_START - minStart) / TICK)) * TICK;
-    const end = DAY_END + Math.max(0, Math.ceil((maxEnd - DAY_END) / TICK)) * TICK;
+        const periodCols = PERIODS.map(([pStart, pEnd]) => {
+          const inPeriod = dayMeetings.filter((m) => m.startMin < pEnd && m.endMin > pStart);
+          return { pStart, pEnd, placed: assignLanes(inPeriod) };
+        });
 
-    const ticks: number[] = [];
-    for (let t = start; t <= end; t += TICK) ticks.push(t);
+        const lanes = periodCols.reduce(
+          (n, col) => col.placed.reduce((m, p) => Math.max(m, p.lane + 1), n),
+          1
+        );
+        return { day: d, periodCols, lanes };
+      }),
+    [sections]
+  );
 
-    const rows = DAYS.map((d) => {
-      const dayMeetings = sections.flatMap((s) =>
-        s.meetings
-          .filter((m) => m.day === d.full)
-          .map((m) => ({
-            section: s,
-            day: m.day,
-            startMin: m.startMin,
-            endMin: m.endMin,
-            room: m.room,
-          }))
-      );
-      const placed = assignLanes(dayMeetings);
-      const lanes = placed.reduce((n, p) => Math.max(n, p.lane + 1), 1);
-      return { day: d, placed, lanes };
-    });
-
-    return { start, end, ticks, rows };
-  }, [sections]);
-
-  const span = end - start || 1;
-  const pctLeft = (min: number) => `${((min - start) / span) * 100}%`;
-  const pctWidth = (a: number, b: number) => `${((b - a) / span) * 100}%`;
   const colors = useMemo(() => sectionColors(sections), [sections]);
 
   return (
     <div className="overflow-x-auto">
-      {/* Time header + day rows; the ScheduleCard wrapping this already
+      {/* Period header + day rows; the ScheduleCard wrapping this already
           supplies the white background and padding, so no chrome here. */}
       <div className="min-w-80">
-        {/* Time header */}
+        {/* Period header */}
         <div className="flex" style={{ paddingLeft: LABEL_W }}>
-          <div className="relative h-6 flex-1">
-            {ticks.map((t) => (
-              <span
-                key={t}
-                className={`absolute text-[10px] font-medium text-gray-500 sm:text-xs ${
-                  t === end ? "" : "-translate-x-1/2"
-                }`}
-                style={t === end ? { right: 0 } : { left: pctLeft(t) }}
-              >
-                {formatMinutes(t)}
-              </span>
-            ))}
-          </div>
+          {PERIODS.map(([s, e]) => (
+            <div
+              key={s}
+              className="flex-1 px-0.5 text-center text-[10px] font-medium text-gray-500 sm:text-xs"
+            >
+              {formatMinutes(s)}–{formatMinutes(e)}
+            </div>
+          ))}
         </div>
 
         {/* Day rows */}
-        {rows.map(({ day, placed, lanes }, rowIdx) => {
+        {rows.map(({ day, periodCols, lanes }, rowIdx) => {
           const rowH = lanes * LANE_H + (lanes - 1) * LANE_GAP + ROW_PAD * 2;
           return (
             <div
@@ -138,45 +128,42 @@ export default function TimetableGrid({
               >
                 {day.short}
               </div>
-              <div className="relative flex-1" style={{ height: rowH }}>
-                {/* Vertical gridlines, one per column boundary (skip the
-                    right edge so the table isn't closed off on that side) */}
-                {ticks
-                  .filter((t) => t !== end)
-                  .map((t) => (
-                    <div
-                      key={t}
-                      className="absolute top-0 bottom-0 border-l border-gray-300/70"
-                      style={{ left: pctLeft(t) }}
-                    />
-                  ))}
-                {/* Class blocks: clean colored pills, details in the tooltip */}
-                {placed.map((p, i) => {
-                  const color = colors.get(p.section.key) ?? "#7A8290";
-                  // When the parent supplies conflict keys (time + duplicate
-                  // course), let them drive the outline; otherwise fall back to
-                  // this grid's own time-overlap detection.
-                  const isConflict = conflictKeys
-                    ? conflictKeys.has(p.section.key)
-                    : p.conflict;
-                  return (
-                    <div
-                      key={i}
-                      title={`${p.section.courseCode}${p.section.section ? ` (${p.section.section})` : ""} · ${p.section.courseName}\n${formatMinutes(p.startMin)}–${formatMinutes(p.endMin)} · ${p.room}${isConflict ? "\n⚠ conflict" : ""}`}
-                      className="absolute rounded-full"
-                      style={{
-                        left: `calc(${pctLeft(p.startMin)} + 2px)`,
-                        width: `calc(${pctWidth(p.startMin, p.endMin)} - 4px)`,
-                        top: ROW_PAD + p.lane * (LANE_H + LANE_GAP),
-                        height: LANE_H,
-                        backgroundColor: color,
-                        outline: isConflict ? "2px solid #DC2626" : undefined,
-                        outlineOffset: isConflict ? "1px" : undefined,
-                      }}
-                    />
-                  );
-                })}
-              </div>
+              {periodCols.map(({ pStart, pEnd, placed }, colIdx) => (
+                <div
+                  key={colIdx}
+                  className="relative flex-1 border-l border-gray-300/70"
+                  style={{ height: rowH }}
+                >
+                  {/* Class blocks: clean colored pills, details in the tooltip */}
+                  {placed.map((p, i) => {
+                    const color = colors.get(p.section.key) ?? "#7A8290";
+                    // When the parent supplies conflict keys (time + duplicate
+                    // course), let them drive the outline; otherwise fall back
+                    // to this period's own time-overlap detection.
+                    const isConflict = conflictKeys
+                      ? conflictKeys.has(p.section.key)
+                      : p.conflict;
+                    const left = ((p.startMin - pStart) / (pEnd - pStart)) * 100;
+                    const width = ((p.endMin - p.startMin) / (pEnd - pStart)) * 100;
+                    return (
+                      <div
+                        key={i}
+                        title={`${p.section.courseCode}${p.section.section ? ` (${p.section.section})` : ""} · ${p.section.courseName}\n${formatMinutes(p.startMin)}–${formatMinutes(p.endMin)} · ${p.room}${isConflict ? "\n⚠ conflict" : ""}`}
+                        className="absolute rounded-full"
+                        style={{
+                          left: `calc(${left}% + 2px)`,
+                          width: `calc(${width}% - 4px)`,
+                          top: ROW_PAD + p.lane * (LANE_H + LANE_GAP),
+                          height: LANE_H,
+                          backgroundColor: color,
+                          outline: isConflict ? "2px solid #DC2626" : undefined,
+                          outlineOffset: isConflict ? "1px" : undefined,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           );
         })}
