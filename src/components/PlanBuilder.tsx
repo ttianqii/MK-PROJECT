@@ -41,22 +41,25 @@ interface StoredPlan {
   chosen: Record<string, string>;
 }
 
+/** Turn a flat list of section keys into the subjects/chosen shape. */
+function subjectsFromKeys(keys: string[]): StoredPlan {
+  const subjects: string[] = [];
+  const chosen: Record<string, string> = {};
+  for (const key of keys) {
+    const code = String(key).split("·")[0];
+    if (!subjects.includes(code)) subjects.push(code);
+    chosen[code] = key;
+  }
+  return { subjects, chosen };
+}
+
 /** Read the saved plan, migrating the old flat section-key array if present. */
 function loadStored(): StoredPlan {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { subjects: [], chosen: {} };
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      const subjects: string[] = [];
-      const chosen: Record<string, string> = {};
-      for (const key of parsed) {
-        const code = String(key).split("·")[0];
-        if (!subjects.includes(code)) subjects.push(code);
-        chosen[code] = key;
-      }
-      return { subjects, chosen };
-    }
+    if (Array.isArray(parsed)) return subjectsFromKeys(parsed);
     if (parsed && typeof parsed === "object") {
       return { subjects: parsed.subjects ?? [], chosen: parsed.chosen ?? {} };
     }
@@ -79,12 +82,21 @@ export default function PlanBuilder({
   recommendations = [],
   needed = [],
   eligibility = { passed: [], prereqByCode: {}, checklistCodes: [] },
+  editId,
+  initialKeys,
+  initialTitle = "",
 }: {
   data: ScheduleData;
   recommendations?: RecommendedCourse[];
   needed?: RecommendedCourse[];
   eligibility?: Eligibility;
+  // When set, edit an existing saved schedule (preload its sections; save via
+  // PATCH) instead of building a new one from the localStorage draft.
+  editId?: number;
+  initialKeys?: string[];
+  initialTitle?: string;
 }) {
+  const isEdit = editId != null;
   const allSections = useMemo(() => groupSections(data.slots), [data.slots]);
   const byKey = useMemo(() => new Map(allSections.map((s) => [s.key, s])), [allSections]);
   const courses = useMemo(() => groupCourses(allSections), [allSections]);
@@ -104,7 +116,7 @@ export default function PlanBuilder({
   const [subjects, setSubjects] = useState<string[]>([]);
   const [chosen, setChosen] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(initialTitle);
   const [saving, setSaving] = useState(false);
 
   // Add-subject sheet + section picker.
@@ -114,21 +126,24 @@ export default function PlanBuilder({
   const [pickerCode, setPickerCode] = useState<string | null>(null);
   const activeTabIndex = SHEET_TABS.findIndex((t) => t.id === tab);
 
-  // Load / persist the plan in localStorage.
+  // Load the working plan: from the edited schedule's keys in edit mode, or
+  // from the localStorage draft when building a new one.
   useEffect(() => {
-    // Hydrate from localStorage after mount (it's unreadable during SSR, so the
-    // first render must match the server's empty state, then fill in here).
-    const stored = loadStored();
+    const stored = isEdit
+      ? subjectsFromKeys(initialKeys ?? [])
+      : loadStored();
     /* eslint-disable react-hooks/set-state-in-effect */
     setSubjects(stored.subjects);
     setChosen(stored.chosen);
     setLoaded(true);
     /* eslint-enable react-hooks/set-state-in-effect */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Persist the new-plan draft only (never overwrite it while editing).
   useEffect(() => {
-    if (loaded) localStorage.setItem(STORAGE_KEY, JSON.stringify({ subjects, chosen }));
-  }, [subjects, chosen, loaded]);
+    if (loaded && !isEdit) localStorage.setItem(STORAGE_KEY, JSON.stringify({ subjects, chosen }));
+  }, [subjects, chosen, loaded, isEdit]);
 
   // The bottom-nav "+" (see DashboardHeader) opens the sheet via this event.
   useEffect(() => {
@@ -172,7 +187,7 @@ export default function PlanBuilder({
   // Persist the current selection as a new schedule card on the My Plan page.
   const saveToPlan = async () => {
     if (subjects.length === 0) {
-      PopUpAlert("Nothing to save", "Add a subject and choose a section first.", "warning");
+      PopUpAlert("ยังไม่มีอะไรให้บันทึก", "เพิ่มวิชาและเลือก section ก่อน", "warning");
       return;
     }
     if (missingSection.length > 0) {
@@ -187,20 +202,24 @@ export default function PlanBuilder({
     const keys = subjects.map((c) => chosen[c]);
     setSaving(true);
     try {
-      const res = await fetch("/api/plan/schedules", {
-        method: "POST",
+      const res = await fetch(isEdit ? `/api/plan/schedules/${editId}` : "/api/plan/schedules", {
+        method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ keys, title }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        PopUpAlert("Save failed", data.message ?? "Please try again.", "error");
+        PopUpAlert("บันทึกไม่สำเร็จ", data.message ?? "กรุณาลองใหม่อีกครั้ง", "error");
         return;
       }
-      PopUpAlert("Saved!", "Added to My Plan as a new schedule.", "success", {
-        imageUrl: "/save.gif",
-      });
-      router.push("/dashboard/plan");
+      PopUpAlert(
+        "บันทึกแล้ว!",
+        isEdit ? "อัปเดตตารางเรียนเรียบร้อย" : "เพิ่มลงใน My Plan เป็นตารางใหม่แล้ว",
+        "success",
+        { imageUrl: "/save.gif" }
+      );
+      router.push(isEdit ? `/dashboard/plan/${editId}` : "/dashboard/plan");
+      router.refresh();
     } finally {
       setSaving(false);
     }
@@ -236,10 +255,10 @@ export default function PlanBuilder({
       {conflicting.size > 0 ? (
         <div className="space-y-1 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {dupSet.size > 0 ? (
-            <p>⚠ You&apos;ve added more than one section of the same course.</p>
+            <p>⚠ คุณเลือกวิชาเดียวกันมากกว่า 1 section</p>
           ) : null}
-          {timeSet.size > 0 ? <p>⚠ Some classes overlap in time.</p> : null}
-          <p className="text-xs text-red-500">Conflicting sections are outlined in red on the grid.</p>
+          {timeSet.size > 0 ? <p>⚠ มีบางวิชาเรียนเวลาทับกัน</p> : null}
+          <p className="text-xs text-red-500">section ที่ชนกันถูกไฮไลต์สีแดงในตาราง</p>
         </div>
       ) : null}
 
@@ -247,7 +266,7 @@ export default function PlanBuilder({
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-            Your subjects {subjects.length > 0 ? `(${subjects.length})` : ""}
+            วิชาที่เลือก {subjects.length > 0 ? `(${subjects.length})` : ""}
           </h2>
           <button
             type="button"
@@ -257,14 +276,14 @@ export default function PlanBuilder({
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
               <path d="M12 5v14M5 12h14" />
             </svg>
-            Add subject
+            เพิ่มวิชา
           </button>
         </div>
 
         {subjects.length === 0 ? (
           <div className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
-            No subjects yet. Tap <span className="font-semibold text-gray-700">Add subject</span> to
-            pick from your recommendations or search the catalog.
+            ยังไม่มีวิชา กด <span className="font-semibold text-gray-700">เพิ่มวิชา</span>{" "}
+            เพื่อเลือกจากรายการแนะนำหรือค้นหาในระบบ
           </div>
         ) : (
           <ul className="space-y-2">
@@ -298,12 +317,12 @@ export default function PlanBuilder({
                         ) : null}
                         {dupSet.has(chosenSec?.key ?? "") ? (
                           <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
-                            duplicate
+                            ซ้ำ
                           </span>
                         ) : null}
                         {timeSet.has(chosenSec?.key ?? "") ? (
                           <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
-                            time conflict
+                            เวลาชนกัน
                           </span>
                         ) : null}
                       </p>
@@ -312,11 +331,11 @@ export default function PlanBuilder({
                       {chosenSec ? (
                         <p className="mt-1 text-xs text-gray-400">
                           {meetingLabel(chosenSec)}
-                          <span className="ml-1 font-medium text-orange-500">· tap to change</span>
+                          <span className="ml-1 font-medium text-orange-500">· แตะเพื่อเปลี่ยน</span>
                         </p>
                       ) : (
                         <p className="mt-1 text-xs font-semibold text-amber-600">
-                          ⚠ choose a section — {sectionCount} available
+                          ⚠ เลือก section — มี {sectionCount} section
                         </p>
                       )}
                     </div>
@@ -352,7 +371,7 @@ export default function PlanBuilder({
                   : "bg-gray-900 hover:bg-gray-700"
               }`}
             >
-              {saving ? "Saving…" : "Save to My Plan"}
+              {saving ? "กำลังบันทึก…" : isEdit ? "บันทึกการแก้ไข" : "บันทึกลง My Plan"}
             </button>
           </div>
         ) : null}
@@ -362,13 +381,13 @@ export default function PlanBuilder({
       <BottomSheet
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
-        ariaLabel="Add subject"
+        ariaLabel="เพิ่มวิชา"
         detents={[50, 82]}
         initial={82}
         header={
           <>
             <div className="px-5 pb-3 pt-1">
-              <h2 className="text-lg font-bold text-gray-900">Add subject</h2>
+              <h2 className="text-lg font-bold text-gray-900">เพิ่มวิชา</h2>
             </div>
             {/* Animated black tab switcher */}
             <div className="relative mx-5 mb-3 grid grid-cols-3 rounded-full bg-gray-100 p-1 text-xs font-semibold">
@@ -401,8 +420,8 @@ export default function PlanBuilder({
             {tab === "recommend" ? (
               recommendations.length === 0 ? (
                 <p className="py-8 text-center text-sm text-gray-500">
-                  No recommendations — every course in your plan is already passed or not offered
-                  this term. Try the other tabs.
+                  ไม่มีวิชาแนะนำ — วิชาที่ยังขาดของคุณผ่านหมดแล้วหรือไม่เปิดสอนเทอมนี้
+                  ลองแท็บอื่นดู
                 </p>
               ) : (
                 <ul className="space-y-2">
@@ -469,17 +488,17 @@ export default function PlanBuilder({
                     type="search"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search by course code or name…"
+                    placeholder="ค้นหาด้วยรหัสวิชาหรือชื่อวิชา…"
                     aria-label="Search subjects"
                     className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
                 {q && searchResults.length === 0 ? (
-                  <p className="py-6 text-center text-sm text-gray-500">No subjects match “{query}”.</p>
+                  <p className="py-6 text-center text-sm text-gray-500">ไม่พบวิชาที่ตรงกับ “{query}”</p>
                 ) : null}
                 {!q ? (
                   <p className="py-6 text-center text-sm text-gray-400">
-                    Start typing to find a subject to add.
+                    พิมพ์เพื่อค้นหาวิชาที่ต้องการเพิ่ม
                   </p>
                 ) : (
                   <ul className="space-y-2">
@@ -517,7 +536,7 @@ export default function PlanBuilder({
             <div className="border-b border-gray-100 px-5 pb-3">
               <p className="font-mono text-base font-bold text-gray-900">{pickerCode}</p>
               <p className="truncate text-sm text-gray-500">{pickerCourse.courseName}</p>
-              <p className="mt-0.5 text-xs uppercase tracking-wide text-gray-400">Choose a section</p>
+              <p className="mt-0.5 text-xs uppercase tracking-wide text-gray-400">เลือก section</p>
             </div>
           ) : null
         }
@@ -621,8 +640,8 @@ function SubjectRow({
         <p className="truncate text-xs text-gray-500">{name}</p>
         <p className="mt-0.5 text-xs text-gray-400">
           {offered
-            ? `${sectionCount} section${sectionCount === 1 ? "" : "s"}`
-            : "not offered this term"}
+            ? `${sectionCount} section`
+            : "ไม่เปิดสอนเทอมนี้"}
         </p>
         {prereq.length > 0 ? (
           <p className={`mt-0.5 text-xs ${prereqMet ? "text-gray-400" : "text-amber-600"}`}>

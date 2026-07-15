@@ -97,15 +97,16 @@ export default function PlanView({
 
   const removeSchedule = async (id: number, label: string) => {
     const confirm = await Swal.fire({
-      title: `Delete ${label}?`,
-      text: "This removes the saved schedule from your plan.",
+      title: `ลบ ${label}?`,
+      text: "จะลบตารางนี้ออกจาก My Plan",
       imageUrl: "/warning.gif",
       imageWidth: 96,
       imageHeight: 96,
       imageAlt: "Warning",
       showCancelButton: true,
+      cancelButtonText: "ยกเลิก",
       confirmButtonColor: "#BE123C",
-      confirmButtonText: "Delete",
+      confirmButtonText: "ลบ",
     });
     if (!confirm.isConfirmed) return;
 
@@ -120,12 +121,12 @@ export default function PlanView({
       const res = await fetch(`/api/plan/schedules/${id}/register`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        PopUpAlert("Registration failed", data.message ?? "Please try again.", "error");
+        PopUpAlert("ลงทะเบียนไม่สำเร็จ", data.message ?? "กรุณาลองใหม่อีกครั้ง", "error");
         return;
       }
       await Swal.fire({
-        title: "Registered!",
-        text: `${label} was submitted as your registration.`,
+        title: "ลงทะเบียนแล้ว!",
+        text: `ส่ง ${label} เป็นผลการลงทะเบียนเรียบร้อย`,
         imageUrl: "/save.gif",
         imageWidth: 96,
         imageHeight: 96,
@@ -151,22 +152,20 @@ export default function PlanView({
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
             <path d="M12 5v14M5 12h14" />
           </svg>
-          Add Plan
+          เพิ่มตาราง
         </Link>
       </div>
 
-      <p className="mt-1 text-sm uppercase tracking-wide text-gray-400">
-        Updated at {formatUpdated(updatedAt)} hrs.
-      </p>
+      <p className="mt-1 text-sm text-gray-400">อัปเดตเมื่อ {formatUpdated(updatedAt)} น.</p>
 
       {/* Schedule cards */}
       <div className="mt-6 space-y-3 sm:space-y-6">
         {schedules.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center">
-            <p className="text-gray-600">No saved schedules yet.</p>
+            <p className="text-gray-600">ยังไม่มีตารางที่บันทึกไว้</p>
             <p className="mt-1 text-sm text-gray-400">
-              Press <span className="font-semibold text-gray-600">Add Plan</span> above to build
-              one, then “Save to My Plan”.
+              กด <span className="font-semibold text-gray-600">เพิ่มตาราง</span> ด้านบนเพื่อสร้างตาราง
+              แล้วกดบันทึก
             </p>
           </div>
         ) : (
@@ -258,14 +257,14 @@ export default function PlanView({
                               role="menuitem"
                               onClick={() => {
                                 setOpenMenuId(null);
-                                setEditingId(s.id);
+                                router.push(`/dashboard/plan/${s.id}/edit`);
                               }}
                               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
                             >
                               <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                                 <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
                               </svg>
-                              Edit Plan
+                              แก้ไข
                             </button>
                             <button
                               type="button"
@@ -279,7 +278,7 @@ export default function PlanView({
                               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                 <path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m3 0-1 14a2 2 0 01-2 2H7a2 2 0 01-2-2L4 6h16z" />
                               </svg>
-                              Delete
+                              ลบ
                             </button>
                           </div>
                         </>
@@ -290,10 +289,21 @@ export default function PlanView({
 
                 {s.sections.length === 0 ? (
                   <p className="rounded-lg bg-gray-50 p-3 text-xs text-gray-500 sm:bg-white sm:p-4 sm:text-sm">
-                    The classes saved in this schedule are no longer offered this term.
+                    วิชาในตารางนี้ไม่ได้เปิดสอนในเทอมนี้แล้ว
                   </p>
                 ) : (
-                  <TimetableGrid sections={s.sections} />
+                  // Tapping the table opens the plan's detail page.
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/dashboard/plan/${s.id}`)}
+                    aria-label={`ดูรายละเอียด ${label}`}
+                    className="block w-full rounded-lg text-left transition hover:bg-gray-50/70"
+                  >
+                    <TimetableGrid sections={s.sections} />
+                    <span className="mt-1 block text-center text-[11px] font-medium text-gray-400">
+                      แตะที่ตารางเพื่อดูรายละเอียด ›
+                    </span>
+                  </button>
                 )}
 
                 <button
@@ -302,7 +312,7 @@ export default function PlanView({
                   disabled={busyId !== null || s.sections.length === 0}
                   className="mt-3 w-full rounded-full bg-gray-900 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60 sm:mt-4 sm:py-3 sm:text-lg"
                 >
-                  {busyId === s.id ? "Registering…" : "Register"}
+                  {busyId === s.id ? "กำลังลงทะเบียน…" : "ลงทะเบียนเรียน"}
                 </button>
               </ScheduleCard>
             );

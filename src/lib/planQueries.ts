@@ -107,6 +107,14 @@ async function getOwnedSchedule(
   return row?.schedule ?? null;
 }
 
+/** Fetch one saved schedule the student owns (for the detail / edit pages). */
+export async function getScheduleById(
+  studentDbId: number,
+  scheduleId: number
+): Promise<PlanScheduleRow | null> {
+  return getOwnedSchedule(studentDbId, scheduleId);
+}
+
 /** Register a schedule's sections for the semester, replacing any previous registration. */
 export async function registerSchedule(
   studentDbId: number,

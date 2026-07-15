@@ -33,19 +33,15 @@ export default async function PlanBuilderPage() {
           <h1 className="text-2xl font-semibold text-gray-900">Plan next term</h1>
           <p className="mt-1 text-sm text-gray-500">
             {schedule.campus && schedule.semester
-              ? `${schedule.campus} · ${schedule.semester}.`
-              : "Build your weekly timetable."}{" "}
-            Add class sections to lay out your week, then save the result to My Plan.
+              ? `${schedule.campus} · ${schedule.semester}`
+              : "จัดตารางเรียนรายสัปดาห์"}{" "}
+            — เพิ่มวิชาและ section จัดตารางของคุณ แล้วบันทึกลง My Plan
           </p>
         </div>
 
         {schedule.slots.length === 0 ? (
           <div className="rounded-lg border border-dashed border-gray-300 bg-white p-12 text-center">
-            <p className="text-gray-600">No schedule data has been loaded yet.</p>
-            <p className="mt-1 text-sm text-gray-400">
-              Run <code className="rounded bg-gray-100 px-1 py-0.5 font-mono">bun run db:seed</code>{" "}
-              to load the demo schedule.
-            </p>
+            <p className="text-gray-600">ยังไม่มีข้อมูลตารางเรียน</p>
           </div>
         ) : (
           <PlanBuilder
