@@ -320,19 +320,6 @@ export default function PlanBuilder({
                         </p>
                       )}
                     </div>
-                    {/* Chevron signals the row opens the section picker */}
-                    <svg
-                      className="h-4 w-4 shrink-0 text-gray-400"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M9 18l6-6-6-6" />
-                    </svg>
                   </button>
                   <button
                     type="button"
@@ -540,8 +527,6 @@ export default function PlanBuilder({
             {pickerCourse.sections.map((sec) => {
                 const seats = sectionSeats(sec);
                 const isChosen = chosen[pickerCode] === sec.key;
-                const availPct = Math.round((seats.available / seats.total) * 100);
-                const barColor = seats.full ? "#DC2626" : "#16A34A";
                 return (
                   <button
                     key={sec.key}
@@ -560,24 +545,26 @@ export default function PlanBuilder({
                       <p className="text-sm font-semibold text-gray-900">
                         Section {sec.section ?? "—"}
                       </p>
-                      {seats.full ? (
-                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-                          FULL
+                      <div className="flex items-center gap-2">
+                        {seats.full ? (
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                            FULL
+                          </span>
+                        ) : isChosen ? (
+                          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
+                            Selected
+                          </span>
+                        ) : null}
+                        {/* Seats as a plain number + icon (no bar) */}
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-600">
+                          <SeatGlyph />
+                          {seats.available}
                         </span>
-                      ) : isChosen ? (
-                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
-                          Selected
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="mt-0.5 text-xs text-gray-500">{meetingLabel(sec)}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200">
-                        <div className="h-full rounded-full" style={{ width: `${availPct}%`, backgroundColor: barColor }} />
                       </div>
-                      <span className="w-20 shrink-0 text-right text-xs font-medium text-gray-600">
-                        {seats.available}/{seats.total} seats
-                      </span>
+                    </div>
+                    {/* Mini weekly timetable: a bar shows when the class meets */}
+                    <div className="mt-2">
+                      <TimetableGrid sections={[sec]} showLegend={false} compact />
                     </div>
                   </button>
                 );
@@ -652,5 +639,15 @@ function SubjectRow({
         {added ? "Added ✓" : blocked ? "—" : "Add +"}
       </button>
     </li>
+  );
+}
+
+/** Small seat icon shown next to a section's available-seat number. */
+function SeatGlyph() {
+  return (
+    <svg className="h-3.5 w-3.5 text-gray-500" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <rect width="12" height="10" x="6" y="2" rx="1" ry="1" />
+      <path d="M4 15v2c0 .55.45 1 1 1h1v4h2v-4h8v4h2v-4h1c.55 0 1-.45 1-1v-2c0-.55-.45-1-1-1H5c-.55 0-1 .45-1 1" />
+    </svg>
   );
 }

@@ -32,6 +32,10 @@ const SIZE_VARS =
   "[--lane-h:15px] [--lane-gap:2px] [--row-pad:4px] [--label-w:34px] " +
   "sm:[--lane-h:26px] sm:[--lane-gap:4px] sm:[--row-pad:9px] sm:[--label-w:42px]";
 
+// A fixed compact size (no sm: upgrade) for tight spots like the section
+// picker popup, where a full-size grid per section would be too tall.
+const COMPACT_VARS = "[--lane-h:12px] [--lane-gap:2px] [--row-pad:3px] [--label-w:30px]";
+
 /** Assign overlapping meetings on a day to stacked lanes (interval graph). */
 function assignLanes(items: Omit<Placed, "lane" | "conflict">[]): Placed[] {
   const sorted = [...items].sort((a, b) => a.startMin - b.startMin);
@@ -63,9 +67,13 @@ function assignLanes(items: Omit<Placed, "lane" | "conflict">[]): Placed[] {
 export default function TimetableGrid({
   sections,
   conflictKeys,
+  showLegend = true,
+  compact = false,
 }: {
   sections: PlanSection[];
   conflictKeys?: Set<string>;
+  showLegend?: boolean;
+  compact?: boolean;
 }) {
   const { start, end, ticks, rows } = useMemo(() => {
     const allMeetings = sections.flatMap((s) => s.meetings);
@@ -108,7 +116,7 @@ export default function TimetableGrid({
   return (
     // Fluid width — no forced min-width/scroll, so the whole grid scales
     // down to fit narrow phones instead of overflowing.
-    <div className={SIZE_VARS}>
+    <div className={compact ? COMPACT_VARS : SIZE_VARS}>
       {/* Time header. Every column still gets a gridline below; on very
           narrow screens only every other time label is shown (always
           keeping the first/last) so the text can't overlap itself. */}
@@ -191,7 +199,7 @@ export default function TimetableGrid({
       ))}
 
       {/* Legend: one seat chip per planned section */}
-      {sections.length > 0 ? (
+      {showLegend && sections.length > 0 ? (
         <div className="mt-2 flex flex-wrap gap-1.5 sm:mt-4 sm:gap-2">
           {sections.map((s) => (
             <span
