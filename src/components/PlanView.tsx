@@ -27,8 +27,8 @@ const BURST_COLORS = ["#E11D48", "#FB923C", "#FBBF24", "#F472B6"];
 const BURST_DOTS = Array.from({ length: 12 }, (_, i) => ({
   angle: `${i * 30}deg`,
   color: BURST_COLORS[i % BURST_COLORS.length],
-  dist: i % 2 === 0 ? "19px" : "14px",
-  size: i % 2 === 0 ? "5px" : "4px",
+  dist: i % 2 === 0 ? "23px" : "17px",
+  size: i % 2 === 0 ? "6px" : "4px",
   delay: `${(i % 3) * 15}ms`,
 }));
 
@@ -183,11 +183,11 @@ export default function PlanView({
                     editing={editingId === s.id}
                     onEditingChange={(v) => setEditingId(v ? s.id : null)}
                     hideTrigger
-                    headingClassName="text-sm font-bold uppercase tracking-wide text-gray-800 sm:text-base"
+                    headingClassName="text-base font-bold uppercase tracking-wide text-gray-800 sm:text-lg"
                   />
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2.5">
                     <span className="text-gray-500" aria-hidden="true">
-                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
                         <rect x="3" y="5" width="18" height="16" rx="2" />
                         <path d="M8 3v4M16 3v4M3 9h18" />
                         <path d="M7.5 12.5h.01M11 12.5h.01M14.5 12.5h.01M7.5 16h.01M11 16h.01M14.5 16h.01" strokeLinecap="round" strokeWidth="2.4" stroke="#DC2626" />
@@ -219,8 +219,8 @@ export default function PlanView({
                           ))
                         : null}
                       <svg
-                        width="20"
-                        height="20"
+                        width="24"
+                        height="24"
                         viewBox="0 0 24 24"
                         fill={liked ? "#BE123C" : "none"}
                         stroke={liked ? "#BE123C" : "#9CA3AF"}
@@ -243,7 +243,7 @@ export default function PlanView({
                         aria-label={`More options for ${label}`}
                         className="rounded-md px-1 py-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                           <circle cx="12" cy="5" r="1.8" />
                           <circle cx="12" cy="12" r="1.8" />
                           <circle cx="12" cy="19" r="1.8" />
@@ -308,7 +308,7 @@ export default function PlanView({
                   type="button"
                   onClick={() => register(s.id, label)}
                   disabled={busyId !== null || s.sections.length === 0}
-                  className="mt-2.5 w-full rounded-full bg-rose-700 py-1.5 text-xs font-semibold uppercase tracking-wide text-white shadow hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-60 sm:py-2 sm:text-sm"
+                  className="mt-3 w-full rounded-full bg-rose-700 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-60 sm:py-2.5 sm:text-base"
                 >
                   {busyId === s.id ? "Registering…" : "Register"}
                 </button>
