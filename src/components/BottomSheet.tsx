@@ -28,6 +28,11 @@ export default function BottomSheet({
 }) {
   const [vh, setVhState] = useState(initial);
   const [dragging, setDragging] = useState(false);
+  // `present` keeps the sheet in the DOM only while open or animating closed;
+  // `visible` drives the slide/fade. When fully closed the component renders
+  // nothing at all, so there's no off-screen panel or shadow lingering.
+  const [present, setPresent] = useState(open);
+  const [visible, setVisible] = useState(false);
   const vhRef = useRef(vh);
   const startRef = useRef<{ y: number; vh: number } | null>(null);
   // Keep the latest callback / detents in refs so the drag effect can stay
@@ -46,11 +51,19 @@ export default function BottomSheet({
     setVhState(clamped);
   }, []);
 
-  // Snap back to the opening detent each time the sheet opens.
+  // Mount + slide in on open; slide out then fully unmount on close.
   useEffect(() => {
-    if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setVh(initial);
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (open) {
+      setPresent(true);
+      setVh(initial);
+      const r = requestAnimationFrame(() => setVisible(true));
+      return () => cancelAnimationFrame(r);
+    }
+    setVisible(false);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    const t = setTimeout(() => setPresent(false), 320);
+    return () => clearTimeout(t);
   }, [open, initial, setVh]);
 
   // Escape closes.
@@ -101,12 +114,15 @@ export default function BottomSheet({
     setDragging(true);
   };
 
+  // Fully closed: render nothing so no off-screen panel/shadow lingers.
+  if (!present) return null;
+
   return (
-    <div className={`fixed inset-0 z-50 ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
+    <div className={`fixed inset-0 z-50 ${visible ? "" : "pointer-events-none"}`} aria-hidden={!visible}>
       <div
         onClick={onClose}
         className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ${
-          open ? "opacity-100" : "opacity-0"
+          visible ? "opacity-100" : "opacity-0"
         }`}
       />
       <div
@@ -116,7 +132,7 @@ export default function BottomSheet({
         style={{ height: `${vh}vh` }}
         className={`absolute inset-x-0 bottom-0 mx-auto flex w-full max-w-xl flex-col rounded-t-3xl bg-white shadow-2xl ${
           dragging ? "" : "transition-[height,transform] duration-300 ease-out"
-        } ${open ? "translate-y-0" : "translate-y-full"}`}
+        } ${visible ? "translate-y-0" : "translate-y-full"}`}
       >
         {/* Drag handle: a generous, scroll-proof touch target */}
         <div
