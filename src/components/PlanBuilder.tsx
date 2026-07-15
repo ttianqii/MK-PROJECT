@@ -14,6 +14,7 @@ import {
 } from "@/lib/timetable";
 import TimetableGrid from "./TimetableGrid";
 import EditableTitle from "./EditableTitle";
+import ScheduleCard from "./ScheduleCard";
 
 const STORAGE_KEY = "sp:nextTermPlan";
 const DAY_ABBR: Record<string, string> = {
@@ -125,13 +126,13 @@ export default function PlanBuilder({
 
   return (
     <div className="space-y-6">
-      {/* Same white card + editable-name container as a saved schedule on My Plan */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+      {/* Same card the saved schedules use on My Plan */}
+      <ScheduleCard>
         <div className="mb-2">
           <EditableTitle value={title} placeholder="New Schedule" onSave={setTitle} />
         </div>
         <TimetableGrid sections={planned} conflictKeys={conflicting} />
-      </section>
+      </ScheduleCard>
 
       {conflicting.size > 0 ? (
         <div className="space-y-1 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

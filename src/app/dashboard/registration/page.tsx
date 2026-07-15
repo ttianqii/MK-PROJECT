@@ -12,6 +12,7 @@ import {
 } from "@/lib/timetable";
 import DashboardHeader from "@/components/DashboardHeader";
 import TimetableGrid from "@/components/TimetableGrid";
+import ScheduleCard from "@/components/ScheduleCard";
 
 export const dynamic = "force-dynamic";
 
@@ -80,20 +81,17 @@ export default async function RegistrationResultPage() {
         ) : (
           <>
             {/* Weekly grid */}
-            <section className="mt-6 rounded-2xl bg-gray-200/60 p-4 shadow-sm sm:p-5">
+            <ScheduleCard className="mt-6">
               <h2 className="mb-2 text-xl font-bold uppercase tracking-wide text-gray-800">
                 Schedule
               </h2>
               <TimetableGrid sections={sections} />
-            </section>
+            </ScheduleCard>
 
             {/* One card per registered course section */}
             <div className="mt-6 space-y-4">
               {sections.map((s) => (
-                <section
-                  key={s.key}
-                  className="relative overflow-hidden rounded-2xl bg-white p-4 shadow-sm sm:p-5"
-                >
+                <ScheduleCard key={s.key} className="relative overflow-hidden">
                   <span
                     className="absolute left-0 top-4 bottom-4 w-1.5 rounded-r"
                     style={{ backgroundColor: colors.get(s.key) }}
@@ -137,7 +135,7 @@ export default async function RegistrationResultPage() {
                       ))}
                     </dl>
                   </div>
-                </section>
+                </ScheduleCard>
               ))}
             </div>
 

@@ -102,8 +102,9 @@ export default function TimetableGrid({
 
   return (
     <div className="overflow-x-auto">
-      {/* White table card: time header + day rows */}
-      <div className="min-w-80 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      {/* Time header + day rows; the ScheduleCard wrapping this already
+          supplies the white background and padding, so no chrome here. */}
+      <div className="min-w-80">
         {/* Time header */}
         <div className="flex" style={{ paddingLeft: LABEL_W }}>
           <div className="relative h-6 flex-1">
@@ -187,7 +188,7 @@ export default function TimetableGrid({
           {sections.map((s) => (
             <span
               key={s.key}
-              className="inline-flex items-center gap-1.5 rounded-full bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700"
+              className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700"
               title={`${s.courseCode}${s.section ? ` (${s.section})` : ""} · seats: ${s.capacity ?? "—"}`}
             >
               <SeatIcon color={colors.get(s.key) ?? "#7A8290"} />

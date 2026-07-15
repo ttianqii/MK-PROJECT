@@ -24,3 +24,54 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Subtle spring pop for the like/heart button — a CSS stand-in for the
+   react-native-reanimated withSpring bounce, since this is a web (DOM) app.
+   Kept modest (1.22x) so it reads as a "pop", not a jump-scare. */
+@keyframes heart-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.22);
+  }
+  70% {
+    transform: scale(0.96);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-heart-pop {
+  animation: heart-pop 0.38s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+/* Twitter-style confetti burst: a ring of dots fly outward from the heart
+   and fade out. Direction/distance/size/stagger come from custom
+   properties set per-dot inline; the motion curve is shared here. */
+@keyframes heart-burst-dot {
+  0% {
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(0) scale(1);
+    opacity: 1;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(var(--dist, 24px)) scale(0.2);
+    opacity: 0;
+  }
+}
+
+.heart-burst-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--size, 6px);
+  height: var(--size, 6px);
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: heart-burst-dot 0.6s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+  animation-delay: var(--delay, 0s);
+}
