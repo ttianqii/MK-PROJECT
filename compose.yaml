@@ -18,6 +18,21 @@ services:
       timeout: 5s
       retries: 20
 
+  # Database browser: http://localhost:8080 (signed in as the app user; use
+  # root / mkroot on the login page for full privileges).
+  phpmyadmin:
+    image: phpmyadmin:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PMA_HOST: db
+      PMA_USER: mk
+      PMA_PASSWORD: mkpassword
+    ports:
+      - "8080:80"
+
   app:
     build: .
     restart: unless-stopped

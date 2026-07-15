@@ -16,7 +16,8 @@ database, which makes it ideal for offline demos and presentations.
 - [Tailwind CSS 4](https://tailwindcss.com)
 - [Drizzle ORM](https://orm.drizzle.team) on [MariaDB 11](https://mariadb.org) (via `mysql2`)
 - Signed HMAC session cookies (Edge-safe), scrypt password hashing — no auth dependencies
-- Docker + Docker Compose
+- [Bun](https://bun.sh) as the package manager
+- Docker + Docker Compose, with [phpMyAdmin](https://www.phpmyadmin.net) for browsing the database
 
 ## Quick start (Docker)
 
@@ -29,6 +30,10 @@ seeds the demo data automatically on boot.
 
 **Demo account:** `demo.student` / `demo1234`
 
+phpMyAdmin runs at <http://localhost:8080> for browsing the tables — it signs
+in automatically as the app's database user (`mk`); log out and use
+`root` / `mkroot` if you need full privileges.
+
 ## Local development
 
 ```bash
@@ -39,12 +44,12 @@ docker compose up db -d
 cp .env.example .env
 
 # 3. Install, migrate, seed
-npm install
-npm run db:migrate
-npm run db:seed
+bun install
+bun run db:migrate
+bun run db:seed
 
 # 4. Run the dev server
-npm run dev
+bun run dev
 ```
 
 Open <http://localhost:3000> and sign in with the demo account above.
@@ -53,12 +58,12 @@ Open <http://localhost:3000> and sign in with the demo account above.
 
 | Script                | What it does                                        |
 | --------------------- | --------------------------------------------------- |
-| `npm run dev`         | Next.js dev server                                  |
-| `npm run build`       | Production build (standalone)                       |
-| `npm run db:generate` | Generate SQL migrations from `src/db/schema.ts`     |
-| `npm run db:migrate`  | Apply migrations (`scripts/migrate.mjs`)            |
-| `npm run db:seed`     | Seed demo student + schedule (`scripts/seed.mjs`)   |
-| `npm run db:studio`   | Drizzle Studio database browser                     |
+| `bun run dev`         | Next.js dev server                                  |
+| `bun run build`       | Production build (standalone)                       |
+| `bun run db:generate` | Generate SQL migrations from `src/db/schema.ts`     |
+| `bun run db:migrate`  | Apply migrations (`scripts/migrate.mjs`)            |
+| `bun run db:seed`     | Seed demo student + schedule (`scripts/seed.mjs`)   |
+| `bun run db:studio`   | Drizzle Studio database browser                     |
 
 ## How it works
 

@@ -40,7 +40,7 @@ export default async function PlanPage() {
           <div className="rounded-lg border border-dashed border-gray-300 bg-white p-12 text-center">
             <p className="text-gray-600">No schedule data has been loaded yet.</p>
             <p className="mt-1 text-sm text-gray-400">
-              Run <code className="rounded bg-gray-100 px-1 py-0.5 font-mono">npm run db:seed</code>{" "}
+              Run <code className="rounded bg-gray-100 px-1 py-0.5 font-mono">bun run db:seed</code>{" "}
               to load the demo schedule.
             </p>
           </div>
