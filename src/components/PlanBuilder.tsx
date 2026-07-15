@@ -527,6 +527,7 @@ export default function PlanBuilder({
             {pickerCourse.sections.map((sec) => {
                 const seats = sectionSeats(sec);
                 const isChosen = chosen[pickerCode] === sec.key;
+                const rooms = [...new Set(sec.meetings.map((m) => m.room).filter(Boolean))].join(", ");
                 return (
                   <button
                     key={sec.key}
@@ -541,11 +542,19 @@ export default function PlanBuilder({
                           : "border-gray-200 bg-white hover:border-blue-400 hover:bg-blue-50"
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-gray-900">
-                        Section {sec.section ?? "—"}
-                      </p>
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900">
+                          Section {sec.section ?? "—"}
+                        </p>
+                        {rooms ? (
+                          <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-gray-500">
+                            <BuildingGlyph />
+                            {rooms}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
                         {seats.full ? (
                           <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
                             FULL
@@ -648,6 +657,19 @@ function SeatGlyph() {
     <svg className="h-3.5 w-3.5 text-gray-500" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <rect width="12" height="10" x="6" y="2" rx="1" ry="1" />
       <path d="M4 15v2c0 .55.45 1 1 1h1v4h2v-4h8v4h2v-4h1c.55 0 1-.45 1-1v-2c0-.55-.45-1-1-1H5c-.55 0-1 .45-1 1" />
+    </svg>
+  );
+}
+
+/** Small building icon shown next to a section's room/building. */
+function BuildingGlyph() {
+  return (
+    <svg className="h-3.5 w-3.5 shrink-0 text-gray-500" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M0 0h24v24H0z" fill="none" />
+      <path
+        fill="currentColor"
+        d="M21 19h2v2H1v-2h2V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v15h2V9h3a1 1 0 0 1 1 1zM7 11v2h4v-2zm0-4v2h4V7z"
+      />
     </svg>
   );
 }

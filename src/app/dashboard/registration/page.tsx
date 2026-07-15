@@ -117,10 +117,13 @@ export default async function RegistrationResultPage() {
                                 width="14"
                                 height="14"
                                 viewBox="0 0 24 24"
-                                fill="currentColor"
                                 aria-hidden="true"
                               >
-                                <path d="M12 2a7 7 0 00-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 00-7-7zm0 9.5A2.5 2.5 0 1112 6a2.5 2.5 0 010 5.5z" />
+                                <path d="M0 0h24v24H0z" fill="none" />
+                                <path
+                                  fill="currentColor"
+                                  d="M21 19h2v2H1v-2h2V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v15h2V9h3a1 1 0 0 1 1 1zM7 11v2h4v-2zm0-4v2h4V7z"
+                                />
                               </svg>
                               {m.room || "Room not specified"}
                             </p>
