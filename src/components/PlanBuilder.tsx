@@ -165,13 +165,26 @@ export default function PlanBuilder({
     setPickerCode(null);
   };
 
+  // Subjects added but still without a chosen section — must be resolved
+  // before saving.
+  const missingSection = useMemo(() => subjects.filter((c) => !chosen[c]), [subjects, chosen]);
+
   // Persist the current selection as a new schedule card on the My Plan page.
   const saveToPlan = async () => {
-    const keys = subjects.map((c) => chosen[c]).filter(Boolean);
-    if (keys.length === 0) {
+    if (subjects.length === 0) {
       PopUpAlert("Nothing to save", "Add a subject and choose a section first.", "warning");
       return;
     }
+    if (missingSection.length > 0) {
+      PopUpAlert(
+        "เลือก section ให้ครบก่อน",
+        `ยังไม่ได้เลือก section ของ: ${missingSection.join(", ")}`,
+        "warning"
+      );
+      setPickerCode(missingSection[0]); // jump straight to the first one
+      return;
+    }
+    const keys = subjects.map((c) => chosen[c]);
     setSaving(true);
     try {
       const res = await fetch("/api/plan/schedules", {
@@ -264,18 +277,21 @@ export default function PlanBuilder({
               return (
                 <li
                   key={code}
-                  className="flex items-stretch justify-between gap-2 rounded-lg border border-gray-200 bg-white"
+                  className={`flex items-stretch justify-between gap-2 rounded-lg border bg-white ${
+                    chosenSec ? "border-gray-200" : "border-amber-300 bg-amber-50/40"
+                  }`}
                 >
                   <button
                     type="button"
                     onClick={() => setPickerCode(code)}
-                    className="flex min-w-0 flex-1 items-start gap-3 rounded-l-lg p-3 text-left hover:bg-gray-50"
+                    aria-label={chosenSec ? `Change section for ${code}` : `Choose a section for ${code}`}
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-l-lg p-3 text-left hover:bg-gray-50"
                   >
                     <span
-                      className="mt-1 h-3 w-3 shrink-0 rounded-full"
-                      style={{ backgroundColor: chosenSec ? plannedColors.get(chosenSec.key) : "#D1D5DB" }}
+                      className="h-3 w-3 shrink-0 rounded-full"
+                      style={{ backgroundColor: chosenSec ? plannedColors.get(chosenSec.key) : "#F59E0B" }}
                     />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm">
                         <span className="font-mono font-semibold text-gray-900">{code}</span>
                         {chosenSec?.section ? (
@@ -293,20 +309,34 @@ export default function PlanBuilder({
                         ) : null}
                       </p>
                       <p className="truncate text-xs text-gray-500">{course?.courseName ?? code}</p>
-                      {/* Subtitle: chosen section + seats, or the section count to pick from */}
+                      {/* Subtitle: chosen section + seats (tap to change), or a prompt to choose */}
                       {chosenSec && seats ? (
                         <p className="mt-1 text-xs text-gray-400">
                           {meetingLabel(chosenSec)}
                           <span className="ml-1 font-medium text-emerald-600">
                             · {seats.available}/{seats.total} seats
                           </span>
+                          <span className="ml-1 text-gray-400">· tap to change</span>
                         </p>
                       ) : (
-                        <p className="mt-1 text-xs font-medium text-blue-600">
-                          {sectionCount} section{sectionCount === 1 ? "" : "s"} available — tap to choose
+                        <p className="mt-1 text-xs font-semibold text-amber-600">
+                          ⚠ choose a section — {sectionCount} available
                         </p>
                       )}
                     </div>
+                    {/* Chevron signals the row opens the section picker */}
+                    <svg
+                      className="h-4 w-4 shrink-0 text-gray-400"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
                   </button>
                   <button
                     type="button"
@@ -323,14 +353,25 @@ export default function PlanBuilder({
         )}
 
         {subjects.length > 0 ? (
-          <button
-            type="button"
-            onClick={saveToPlan}
-            disabled={saving}
-            className="w-full rounded-full bg-gray-900 py-2.5 text-sm font-semibold uppercase tracking-wide text-white shadow hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {saving ? "Saving…" : "Save to My Plan"}
-          </button>
+          <div className="space-y-2">
+            {missingSection.length > 0 ? (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-700">
+                ⚠ เลือก section ให้ครบก่อนบันทึก — ยังขาด {missingSection.length} วิชา
+              </p>
+            ) : null}
+            <button
+              type="button"
+              onClick={saveToPlan}
+              disabled={saving}
+              className={`w-full rounded-full py-2.5 text-sm font-semibold uppercase tracking-wide text-white shadow disabled:cursor-not-allowed disabled:opacity-60 ${
+                missingSection.length > 0
+                  ? "bg-gray-400 hover:bg-gray-500"
+                  : "bg-gray-900 hover:bg-gray-700"
+              }`}
+            >
+              {saving ? "Saving…" : "Save to My Plan"}
+            </button>
+          </div>
         ) : null}
       </section>
 
