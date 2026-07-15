@@ -117,14 +117,20 @@ export default function DashboardHeader({ student }: { student: HeaderStudent })
               href={item.href}
               aria-current={active ? "page" : undefined}
               aria-label={item.label}
-              className={`flex items-center gap-2 rounded-full px-4 py-2.5 transition-colors ${
+              className={`flex items-center rounded-full px-4 py-2.5 transition-colors duration-300 ease-out ${
                 active ? "bg-white text-gray-900" : "text-gray-400 hover:text-white"
               }`}
             >
               {item.icon}
-              {active ? (
-                <span className="max-w-32 truncate text-xs font-semibold">{item.label}</span>
-              ) : null}
+              {/* Label stays mounted so it can slide open/closed as the
+                  active pill morphs between items */}
+              <span
+                className={`overflow-hidden whitespace-nowrap text-xs font-semibold transition-all duration-300 ease-out ${
+                  active ? "ml-2 max-w-32 opacity-100" : "ml-0 max-w-0 opacity-0"
+                }`}
+              >
+                {item.label}
+              </span>
             </Link>
           );
         })}

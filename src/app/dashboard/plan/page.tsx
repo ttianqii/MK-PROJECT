@@ -3,7 +3,6 @@ import { getSession } from "@/lib/serverAuth";
 import { getOrCreatePlan, getStudentByUsername } from "@/lib/planQueries";
 import { getSchedule } from "@/lib/scheduleQueries";
 import { groupSections, type PlanSection } from "@/lib/timetable";
-import DashboardHeader from "@/components/DashboardHeader";
 import PlanView, { type PlanViewSchedule } from "@/components/PlanView";
 
 export const dynamic = "force-dynamic";
@@ -32,14 +31,8 @@ export default async function PlanPage() {
   }));
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <DashboardHeader
-        student={{ studentId: student.studentId, nameEn: student.nameEn, photo: student.photo }}
-      />
-
-      <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 md:pb-8">
-        <PlanView updatedAt={plan.updatedAt.toISOString()} schedules={resolved} />
-      </main>
-    </div>
+    <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 md:pb-8">
+      <PlanView updatedAt={plan.updatedAt.toISOString()} schedules={resolved} />
+    </main>
   );
 }

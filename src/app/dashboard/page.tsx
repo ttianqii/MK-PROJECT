@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/serverAuth";
 import { getChecklist, type Checklist } from "@/lib/checklist";
-import { getStudentByUsername } from "@/lib/planQueries";
-import DashboardHeader from "@/components/DashboardHeader";
 import ChecklistCategories from "@/components/ChecklistCategories";
 
 // Redundant with the GPA badge and the credits-earned progress bar above.
@@ -14,30 +12,21 @@ export default async function DashboardPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const student = await getStudentByUsername(session.u);
-  if (!student) redirect("/login");
-
   const checklist = await getChecklist(session.u);
 
   return (
-    <div className="min-h-screen bg-stone-100">
-      <DashboardHeader
-        student={{ studentId: student.studentId, nameEn: student.nameEn, photo: student.photo }}
-      />
-
-      <main className="mx-auto max-w-5xl px-4 pb-28 pt-5 sm:px-6 sm:pt-8 md:pb-8">
-        {!checklist ? (
-          <div className="rounded-3xl bg-white p-8 text-center shadow-sm">
-            <p className="text-gray-700">We couldn&apos;t load your study plan right now.</p>
-            <a href="/login" className="mt-4 inline-block text-blue-600 hover:underline">
-              Sign in again
-            </a>
-          </div>
-        ) : (
-          <ChecklistView checklist={checklist} />
-        )}
-      </main>
-    </div>
+    <main className="mx-auto max-w-5xl px-4 pb-28 pt-5 sm:px-6 sm:pt-8 md:pb-8">
+      {!checklist ? (
+        <div className="rounded-3xl bg-white p-8 text-center shadow-sm">
+          <p className="text-gray-700">We couldn&apos;t load your study plan right now.</p>
+          <a href="/login" className="mt-4 inline-block text-blue-600 hover:underline">
+            Sign in again
+          </a>
+        </div>
+      ) : (
+        <ChecklistView checklist={checklist} />
+      )}
+    </main>
   );
 }
 
@@ -49,14 +38,6 @@ function ChecklistView({ checklist }: { checklist: Checklist }) {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      {/* Page title */}
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Overview</p>
-        <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
-          Study Info
-        </h1>
-      </div>
-
       {/* Student profile card — blurred image cover inset from the card edges,
           avatar overlapping it */}
       <section className="overflow-hidden rounded-3xl bg-white shadow-sm">
@@ -114,9 +95,6 @@ function ChecklistView({ checklist }: { checklist: Checklist }) {
               <span className="font-semibold text-gray-800">Credits earned</span>
               <span className="text-gray-500">
                 <span className="font-semibold text-gray-900">{earned}</span> / {total}
-                <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                  {pct}%
-                </span>
               </span>
             </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-200/80">

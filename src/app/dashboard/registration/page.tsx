@@ -10,7 +10,6 @@ import {
   sectionColors,
   type PlanSection,
 } from "@/lib/timetable";
-import DashboardHeader from "@/components/DashboardHeader";
 import TimetableGrid from "@/components/TimetableGrid";
 import ScheduleCard from "@/components/ScheduleCard";
 
@@ -45,12 +44,7 @@ export default async function RegistrationResultPage() {
   const colors = sectionColors(sections);
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <DashboardHeader
-        student={{ studentId: student.studentId, nameEn: student.nameEn, photo: student.photo }}
-      />
-
-      <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 md:pb-8">
+    <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 md:pb-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-3xl font-light uppercase tracking-wide text-gray-900">
             Registration Result
@@ -155,7 +149,6 @@ export default async function RegistrationResultPage() {
             </section>
           </>
         )}
-      </main>
-    </div>
+    </main>
   );
 }

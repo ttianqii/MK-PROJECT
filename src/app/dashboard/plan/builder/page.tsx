@@ -5,7 +5,6 @@ import { getSchedule } from "@/lib/scheduleQueries";
 import { getChecklist } from "@/lib/checklist";
 import { recommendCourses } from "@/lib/recommendations";
 import { groupSections } from "@/lib/timetable";
-import DashboardHeader from "@/components/DashboardHeader";
 import PlanBuilder from "@/components/PlanBuilder";
 
 export const dynamic = "force-dynamic";
@@ -26,12 +25,7 @@ export default async function PlanBuilderPage() {
     : [];
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <DashboardHeader
-        student={{ studentId: student.studentId, nameEn: student.nameEn, photo: student.photo }}
-      />
-
-      <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 md:pb-8">
+    <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 md:pb-8">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-gray-900">Plan next term</h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -53,7 +47,6 @@ export default async function PlanBuilderPage() {
         ) : (
           <PlanBuilder data={schedule} recommendations={recommendations} />
         )}
-      </main>
-    </div>
+    </main>
   );
 }
