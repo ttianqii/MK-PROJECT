@@ -13,6 +13,22 @@
 export const SESSION_COOKIE = "mk_session";
 export const SESSION_MAX_AGE = 60 * 60 * 8; // 8 hours, in seconds
 
+/**
+ * True when the client actually connected over https (directly or via a
+ * proxy). The session cookie's Secure flag must follow the connection, not
+ * NODE_ENV: browsers silently drop a Secure cookie delivered over plain http
+ * (e.g. a phone on the LAN hitting http://192.168.x.x:3000 against the
+ * production build), which turns every login into a bounce back to /login.
+ */
+export function isHttpsRequest(request: {
+  headers: { get(name: string): string | null };
+  nextUrl: { protocol: string };
+}): boolean {
+  const proto =
+    request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
+  return proto.split(",")[0].trim() === "https";
+}
+
 export type Role = "student";
 
 export interface SessionPayload {

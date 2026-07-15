@@ -1,17 +1,37 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import PopUpAlert from "@/components/PopUpAlert";
 
-function LoginForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const from = searchParams.get("from") || "/dashboard";
+const FORM_ERROR_MESSAGES: Record<string, string> = {
+  missing: "Username and password are required.",
+  invalid: "Invalid username or password.",
+  failed: "Login failed. Please try again.",
+};
 
+// Only follow same-origin paths ("/dashboard", not "//evil.com" or full URLs).
+function safeFrom(from: string | null) {
+  return from && from.startsWith("/") && !from.startsWith("//") ? from : "/dashboard";
+}
+
+/*
+ * Search params are read from window.location inside the effect and the
+ * submit handler — never during render. Rendering them (useSearchParams)
+ * would suspend the page at build time and strip the whole form from the
+ * production HTML, leaving no-JS/slow-JS phones a blank page with nothing
+ * to submit.
+ */
+export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Surfaces the ?error= the API redirects to when a submission reaches it
+  // as a plain HTML form post (JS didn't intercept the submit in time).
+  useEffect(() => {
+    const error = new URLSearchParams(window.location.search).get("error");
+    if (error) PopUpAlert("warning", FORM_ERROR_MESSAGES[error] || "Login failed.", "warning");
+  }, []);
 
   const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -20,14 +40,22 @@ function LoginForm() {
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
+        // Some mobile browsers (notably iOS Safari) won't reliably persist a
+        // Set-Cookie response header from fetch() unless credentials are
+        // explicitly requested — without this the session cookie can be
+        // silently dropped, so the redirect below just bounces back to login.
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
 
       if (response.ok) {
         const data = await response.json().catch(() => ({}));
-        router.push(data.redirectTo || from);
-        router.refresh();
+        const from = safeFrom(new URLSearchParams(window.location.search).get("from"));
+        // A hard navigation (not router.push) guarantees the freshly-set
+        // cookie is sent with the very next request, instead of relying on
+        // the client router to have picked it up from this fetch response.
+        window.location.href = data.redirectTo || from;
       } else {
         const data = await response.json().catch(() => ({}));
         PopUpAlert("warning", data.message || "Login failed.", "warning");
@@ -44,14 +72,24 @@ function LoginForm() {
       <div className="max-w-md w-full bg-white p-6 rounded-md shadow-xl sm:p-8">
         <h2 className="text-xl font-semibold text-gray-900">Sign in</h2>
         <p className="mt-1 text-sm text-gray-500">Use your student account to access your study plan.</p>
-        <form onSubmit={handleSubmit} className="mt-4">
+        {/*
+          method/action make this a real, working form even if JavaScript
+          never hydrates on the client (the onSubmit handler below normally
+          intercepts it first — see the route handler for how the API
+          supports both this native form-post path and the JS fetch path).
+        */}
+        <form onSubmit={handleSubmit} method="post" action="/api/auth/login" className="mt-4">
           <label htmlFor="username" className="block text-sm font-medium text-gray-700">
             Username
           </label>
           <input
             type="text"
             id="username"
+            name="username"
             autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             placeholder="e.g. demo.student"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -65,7 +103,11 @@ function LoginForm() {
           <input
             type="password"
             id="password"
+            name="password"
             autoComplete="current-password"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -87,13 +129,5 @@ function LoginForm() {
         </p>
       </div>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={null}>
-      <LoginForm />
-    </Suspense>
   );
 }

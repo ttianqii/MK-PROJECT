@@ -130,7 +130,7 @@ export default function PlanView({
         imageWidth: 96,
         imageHeight: 96,
         imageAlt: "Registered",
-        timer: 1600,
+        timer: 2200,
         showConfirmButton: false,
       });
       router.push(data.redirectTo ?? "/dashboard/registration");

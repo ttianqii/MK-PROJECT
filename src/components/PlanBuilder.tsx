@@ -104,7 +104,9 @@ export default function PlanBuilder({
         PopUpAlert("Save failed", data.message ?? "Please try again.", "error");
         return;
       }
-      PopUpAlert("Saved!", "Added to My Plan as a new schedule.", "success");
+      PopUpAlert("Saved!", "Added to My Plan as a new schedule.", "success", {
+        imageUrl: "/save.gif",
+      });
       router.push("/dashboard/plan");
     } finally {
       setSaving(false);

@@ -18,9 +18,14 @@ export async function proxy(request: NextRequest) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const loginUrl = request.nextUrl.clone();
-  loginUrl.pathname = "/login";
-  loginUrl.search = "";
+  // The proxy runtime requires an absolute redirect URL, but request.url
+  // reflects the server's bind address (http://0.0.0.0:3000 in Docker), which
+  // is unreachable from other devices. Rebuild the origin from the Host
+  // header the client actually used instead.
+  const host = request.headers.get("host");
+  const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
+  const origin = host ? `${proto}://${host}` : request.nextUrl.origin;
+  const loginUrl = new URL("/login", origin);
   loginUrl.searchParams.set("from", request.nextUrl.pathname);
   return NextResponse.redirect(loginUrl);
 }
