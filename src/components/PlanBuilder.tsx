@@ -8,6 +8,7 @@ import type { ScheduleData } from "@/lib/scheduleQueries";
 import type { RecommendedCourse, Eligibility } from "@/lib/recommendations";
 import {
   detectConflicts,
+  formatMinutes,
   groupCourses,
   groupSections,
   sectionColors,
@@ -20,6 +21,22 @@ import ScheduleCard from "./ScheduleCard";
 import { MeetingRows } from "./SubjectDetailCard";
 
 const STORAGE_KEY = "sp:nextTermPlan";
+const DAY_ABBR: Record<string, string> = {
+  Sunday: "SUN",
+  Monday: "MON",
+  Tuesday: "TUE",
+  Wednesday: "WED",
+  Thursday: "THU",
+  Friday: "FRI",
+  Saturday: "SAT",
+};
+
+/** "MON 09:00-10:30, WED 13:00-14:30" — a section's meetings as text. */
+function dayTimeText(s: PlanSection): string {
+  return s.meetings
+    .map((m) => `${DAY_ABBR[m.day] ?? m.day} ${formatMinutes(m.startMin)}-${formatMinutes(m.endMin)}`)
+    .join(", ");
+}
 
 interface StoredPlan {
   subjects: string[];
@@ -560,10 +577,13 @@ export default function PlanBuilder({
                           : "border-gray-200 bg-white hover:border-blue-400 hover:bg-blue-50"
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="min-w-0 truncate text-sm font-semibold text-gray-900">
-                        Section {sec.section ?? "—"}
-                      </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900">
+                          Section {sec.section ?? "—"}
+                        </p>
+                        <p className="mt-0.5 text-xs text-gray-500">{dayTimeText(sec)}</p>
+                      </div>
                       <div className="flex shrink-0 items-center gap-3">
                         {seats.full ? (
                           <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
@@ -642,7 +662,7 @@ function SubjectRow({
         </p>
         {prereq.length > 0 ? (
           <p className={`mt-0.5 text-xs ${prereqMet ? "text-gray-400" : "text-amber-600"}`}>
-            ต้องผ่านก่อน: {prereq.join(", ")}
+            ต้องผ่าน : {prereq.join(", ")}
             {prereqMet ? " ✓" : " (ยังไม่ผ่าน)"}
           </p>
         ) : null}

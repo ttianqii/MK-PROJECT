@@ -65,7 +65,7 @@ export default function SubjectDetailCard({
           </div>
           <p className="mt-0.5 text-xs font-medium uppercase text-gray-600">{section.courseName}</p>
           {prereq.length > 0 ? (
-            <p className="mt-0.5 text-xs text-gray-400">ต้องผ่านก่อน: {prereq.join(", ")}</p>
+            <p className="mt-0.5 text-xs text-gray-400">ต้องผ่าน : {prereq.join(", ")}</p>
           ) : null}
         </div>
       </div>
