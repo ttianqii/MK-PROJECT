@@ -9,11 +9,15 @@ export async function POST(request: NextRequest) {
   const student = await getApiStudent();
   if (!student) return NextResponse.json({ message: "Not logged in." }, { status: 401 });
 
-  const { keys } = await request.json().catch(() => ({}));
+  const { keys, title } = await request.json().catch(() => ({}));
   if (!Array.isArray(keys) || keys.length === 0 || !keys.every((k) => typeof k === "string")) {
     return NextResponse.json({ message: "Add at least one class before saving." }, { status: 400 });
   }
 
-  const row = await addSchedule(student.id, keys);
+  const row = await addSchedule(
+    student.id,
+    keys,
+    typeof title === "string" ? title.trim().slice(0, 100) : ""
+  );
   return NextResponse.json({ ok: true, id: row.id });
 }
