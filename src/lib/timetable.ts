@@ -120,28 +120,22 @@ export function groupCourses(sections: PlanSection[]): CourseGroup[] {
 }
 
 export interface SectionSeats {
-  taken: number;
+  available: number;
   total: number;
   full: boolean;
 }
 
 /**
- * Synthetic seat availability for a section. The scraped BU data carries a
- * room capacity but no live enrollment count, so the "taken" figure is a
- * stable pseudo-random value derived from the section key — it never changes
- * between renders for the same section, so a section that reads "full" stays
- * full. Total falls back to 30 when a section has no room capacity.
+ * Seat availability for a section. Mockup for now: the scraped BU data has a
+ * room capacity but no live enrollment count, so every section is shown as
+ * fully available (available === total, never full). When a real
+ * seat-availability source exists, compute the taken count here and derive
+ * `available` / `full` from it. Total falls back to 30 when a section has no
+ * room capacity.
  */
 export function sectionSeats(section: PlanSection): SectionSeats {
   const total = section.capacity && section.capacity > 0 ? section.capacity : 30;
-  let h = 0;
-  for (let i = 0; i < section.key.length; i++) h = (h * 31 + section.key.charCodeAt(i)) >>> 0;
-  // ~12% of sections come out full (taken === total) so the "FULL" state
-  // actually shows up across a course's sections; the rest fill in 0..~90%.
-  const r = h % 100;
-  const full = r >= 88;
-  const taken = full ? total : Math.min(total - 1, Math.round((total * r) / 100));
-  return { taken, total, full };
+  return { available: total, total, full: false };
 }
 
 /** Two meetings collide if they share a day and their time ranges overlap. */

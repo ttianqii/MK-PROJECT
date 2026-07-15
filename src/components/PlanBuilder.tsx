@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import PopUpAlert from "./PopUpAlert";
 import type { ScheduleData } from "@/lib/scheduleQueries";
@@ -90,6 +90,42 @@ export default function PlanBuilder({
   const [query, setQuery] = useState("");
   const [pickerCode, setPickerCode] = useState<string | null>(null);
 
+  // Drag-to-resize sheet. Height is a fixed vh so both tabs stay the same
+  // height (Search doesn't shrink to fit its lone input), and the grab handle
+  // lets the user drag the sheet taller/shorter — or flick it down to close.
+  const DEFAULT_SHEET_VH = 72;
+  const MIN_SHEET_VH = 35;
+  const MAX_SHEET_VH = 92;
+  const [sheetVh, setSheetVh] = useState(DEFAULT_SHEET_VH);
+  const dragRef = useRef<{ startY: number; startVh: number } | null>(null);
+
+  const openSheet = () => {
+    setSheetVh(DEFAULT_SHEET_VH);
+    setSheetOpen(true);
+  };
+
+  const onHandleDown = (e: React.PointerEvent) => {
+    dragRef.current = { startY: e.clientY, startVh: sheetVh };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onHandleMove = (e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    const dyVh = ((e.clientY - dragRef.current.startY) / window.innerHeight) * 100;
+    // Dragging up (dy < 0) grows the sheet; down shrinks it.
+    setSheetVh(Math.max(MIN_SHEET_VH, Math.min(MAX_SHEET_VH, dragRef.current.startVh - dyVh)));
+  };
+  const onHandleUp = (e: React.PointerEvent) => {
+    const wasDragging = dragRef.current !== null;
+    dragRef.current = null;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* pointer already released */
+    }
+    // Dragged down to the minimum → treat as a dismiss.
+    if (wasDragging && sheetVh <= MIN_SHEET_VH + 2) setSheetOpen(false);
+  };
+
   // Load / persist the plan in localStorage.
   useEffect(() => {
     // Hydrate from localStorage after mount (it's unreadable during SSR, so the
@@ -108,7 +144,10 @@ export default function PlanBuilder({
 
   // The bottom-nav "+" (see DashboardHeader) opens the sheet via this event.
   useEffect(() => {
-    const open = () => setSheetOpen(true);
+    const open = () => {
+      setSheetVh(DEFAULT_SHEET_VH);
+      setSheetOpen(true);
+    };
     window.addEventListener("mk:add-subject", open);
     return () => window.removeEventListener("mk:add-subject", open);
   }, []);
@@ -221,7 +260,7 @@ export default function PlanBuilder({
           </h2>
           <button
             type="button"
-            onClick={() => setSheetOpen(true)}
+            onClick={openSheet}
             className="inline-flex items-center gap-1.5 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-gray-700"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
@@ -280,8 +319,8 @@ export default function PlanBuilder({
                       {chosenSec && seats ? (
                         <p className="mt-1 text-xs text-gray-400">
                           {meetingLabel(chosenSec)}
-                          <span className={`ml-1 font-medium ${seats.full ? "text-red-600" : "text-gray-500"}`}>
-                            · seats {seats.taken}/{seats.total}
+                          <span className="ml-1 font-medium text-emerald-600">
+                            · {seats.available}/{seats.total} seats
                           </span>
                         </p>
                       ) : (
@@ -332,11 +371,20 @@ export default function PlanBuilder({
           role="dialog"
           aria-modal="true"
           aria-label="Add subject"
-          className={`absolute inset-x-0 bottom-0 mx-auto flex max-h-[85vh] w-full max-w-xl flex-col rounded-t-3xl bg-white shadow-2xl transition-transform duration-300 ease-out ${
+          style={{ height: `${sheetVh}vh` }}
+          className={`absolute inset-x-0 bottom-0 mx-auto flex w-full max-w-xl flex-col rounded-t-3xl bg-white shadow-2xl transition-transform duration-300 ease-out ${
             sheetOpen ? "translate-y-0" : "translate-y-full"
           }`}
         >
-          <div className="flex justify-center pt-3">
+          {/* Drag handle: slide up/down to resize, or flick down to close */}
+          <div
+            onPointerDown={onHandleDown}
+            onPointerMove={onHandleMove}
+            onPointerUp={onHandleUp}
+            role="separator"
+            aria-label="Resize sheet"
+            className="flex shrink-0 cursor-ns-resize touch-none justify-center pb-1 pt-3"
+          >
             <span className="h-1.5 w-10 rounded-full bg-gray-300" />
           </div>
           <div className="flex items-center justify-between px-5 pb-3 pt-2">
@@ -480,8 +528,8 @@ export default function PlanBuilder({
               {pickerCourse.sections.map((sec) => {
                 const seats = sectionSeats(sec);
                 const isChosen = chosen[pickerCode] === sec.key;
-                const pct = Math.min(100, Math.round((seats.taken / seats.total) * 100));
-                const barColor = seats.full ? "#DC2626" : pct >= 80 ? "#EA580C" : "#16A34A";
+                const availPct = Math.round((seats.available / seats.total) * 100);
+                const barColor = seats.full ? "#DC2626" : "#16A34A";
                 return (
                   <button
                     key={sec.key}
@@ -513,10 +561,10 @@ export default function PlanBuilder({
                     <p className="mt-0.5 text-xs text-gray-500">{meetingLabel(sec)}</p>
                     <div className="mt-2 flex items-center gap-2">
                       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200">
-                        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+                        <div className="h-full rounded-full" style={{ width: `${availPct}%`, backgroundColor: barColor }} />
                       </div>
-                      <span className="w-14 shrink-0 text-right text-xs font-medium text-gray-600">
-                        {seats.taken}/{seats.total}
+                      <span className="w-20 shrink-0 text-right text-xs font-medium text-gray-600">
+                        {seats.available}/{seats.total} seats
                       </span>
                     </div>
                   </button>
