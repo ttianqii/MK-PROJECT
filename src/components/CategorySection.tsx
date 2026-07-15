@@ -62,7 +62,7 @@ function CreditBar({ earned, required, pct }: { earned: number; required: number
       </span>
       <span className="block h-1.5 w-16 overflow-hidden rounded-full bg-gray-200 sm:w-24">
         <span
-          className={`block h-full rounded-full ${done ? "bg-emerald-500" : "bg-gray-800"}`}
+          className="block h-full rounded-full bg-emerald-500"
           style={{ width: `${pct}%` }}
         />
       </span>
@@ -104,8 +104,9 @@ function CourseCard({ course }: { course: Course }) {
 function GroupTable({ group }: { group: CourseGroup }) {
   return (
     <>
-      {/* Phone: stacked list, no horizontal scrolling */}
-      <ul className="divide-y divide-gray-100 px-4 pb-2 pt-1 sm:hidden">
+      {/* Phone: stacked list, no horizontal scrolling. Left padding matches
+          the nested collapse header so course rows line up under its label. */}
+      <ul className="divide-y divide-gray-100 pb-2 pl-8 pr-4 pt-1 sm:hidden">
         {group.courses.map((c, i) => (
           <CourseCard key={i} course={c} />
         ))}
@@ -113,7 +114,7 @@ function GroupTable({ group }: { group: CourseGroup }) {
 
       {/* Tablet/desktop: the classic table */}
       <div className="hidden overflow-x-auto sm:block">
-        <div className="min-w-130 px-4 pb-3 pt-1 sm:px-6">
+        <div className="min-w-130 pb-3 pl-8 pr-4 pt-1 sm:pl-10 sm:pr-6">
           <table className="w-full table-fixed text-sm">
             <Cols />
             <thead>

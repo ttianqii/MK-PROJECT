@@ -81,20 +81,21 @@ function ChecklistView({ checklist }: { checklist: Checklist }) {
                 <img
                   src={student.photo}
                   alt={student.nameEn || student.nameTh}
-                  className="h-16 w-16 shrink-0 rounded-full object-cover shadow-md ring-4 ring-white sm:h-20 sm:w-20"
+                  className="h-16 w-16 shrink-0 rounded-full object-cover ring-4 ring-white sm:h-20 sm:w-20"
                 />
               ) : (
-                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gray-100 shadow-md ring-4 ring-white sm:h-20 sm:w-20">
+                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gray-100 ring-4 ring-white sm:h-20 sm:w-20">
                   <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="text-gray-400">
                     <path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4 0-7 2-7 4.5V20h14v-1.5C19 16 16 14 12 14z" />
                   </svg>
                 </span>
               )}
             </div>
-            {/* GPA badge, top right of the profile section */}
-            <span className="mb-1 flex items-baseline gap-1.5 rounded-full bg-gray-900 px-3.5 py-1.5 text-white shadow-md">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">GPA</span>
-              <span className="text-sm font-bold">{student.gpa || "—"}</span>
+            {/* GPA badge, top right of the profile section — white ring like
+                the avatar, nudged in from the card edge */}
+            <span className="mb-1 mr-3 flex items-baseline gap-2 rounded-full bg-gray-100 px-5 py-2.5 ring-4 ring-white sm:mr-5">
+              <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">GPA</span>
+              <span className="text-xl font-bold text-gray-900 sm:text-2xl">{student.gpa || "—"}</span>
             </span>
           </div>
 
