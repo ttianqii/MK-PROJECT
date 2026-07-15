@@ -1,0 +1,1 @@
+ALTER TABLE `plan_schedules` ADD `title` varchar(100) DEFAULT '' NOT NULL;

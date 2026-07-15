@@ -58,12 +58,9 @@ function assignLanes(items: Omit<Placed, "lane" | "conflict">[]): Placed[] {
 export default function TimetableGrid({
   sections,
   conflictKeys,
-  frameless = false,
 }: {
   sections: PlanSection[];
   conflictKeys?: Set<string>;
-  /** Drop the white card chrome so the grid can sit inside another card. */
-  frameless?: boolean;
 }) {
   const { start, end, ticks, rows } = useMemo(() => {
     const allMeetings = sections.flatMap((s) => s.meetings);
@@ -104,14 +101,9 @@ export default function TimetableGrid({
   const colors = useMemo(() => sectionColors(sections), [sections]);
 
   return (
-    <div
-      className={
-        frameless
-          ? "overflow-x-auto"
-          : "overflow-x-auto rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
-      }
-    >
-      <div className="min-w-80">
+    <div className="overflow-x-auto">
+      {/* White table card: time header + day rows */}
+      <div className="min-w-80 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
         {/* Time header */}
         <div className="flex" style={{ paddingLeft: LABEL_W }}>
           <div className="relative h-6 flex-1">
@@ -140,20 +132,23 @@ export default function TimetableGrid({
               }`}
             >
               <div
-                className="flex items-center text-xs font-semibold tracking-wide text-gray-700"
+                className="flex items-center justify-center text-center text-xs font-semibold tracking-wide text-gray-700"
                 style={{ width: LABEL_W }}
               >
                 {day.short}
               </div>
               <div className="relative flex-1" style={{ height: rowH }}>
-                {/* Vertical gridlines, one per column boundary */}
-                {ticks.map((t) => (
-                  <div
-                    key={t}
-                    className="absolute top-0 bottom-0 border-l border-gray-300/70"
-                    style={{ left: pctLeft(t) }}
-                  />
-                ))}
+                {/* Vertical gridlines, one per column boundary (skip the
+                    right edge so the table isn't closed off on that side) */}
+                {ticks
+                  .filter((t) => t !== end)
+                  .map((t) => (
+                    <div
+                      key={t}
+                      className="absolute top-0 bottom-0 border-l border-gray-300/70"
+                      style={{ left: pctLeft(t) }}
+                    />
+                  ))}
                 {/* Class blocks: clean colored pills, details in the tooltip */}
                 {placed.map((p, i) => {
                   const color = colors.get(p.section.key) ?? "#7A8290";
@@ -188,13 +183,11 @@ export default function TimetableGrid({
 
       {/* Legend: one seat chip per planned section */}
       {sections.length > 0 ? (
-        <div className="mt-4 flex flex-wrap gap-2 border-t border-gray-100 pt-4">
+        <div className="mt-4 flex flex-wrap gap-2">
           {sections.map((s) => (
             <span
               key={s.key}
-              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium text-gray-700 ${
-                frameless ? "bg-white shadow-sm" : "bg-gray-100"
-              }`}
+              className="inline-flex items-center gap-1.5 rounded-full bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700"
               title={`${s.courseCode}${s.section ? ` (${s.section})` : ""} · seats: ${s.capacity ?? "—"}`}
             >
               <SeatIcon color={colors.get(s.key) ?? "#7A8290"} />
@@ -208,15 +201,14 @@ export default function TimetableGrid({
 }
 
 function SeatIcon({ color }: { color: string }) {
-  // Simple chair glyph echoing the reference legend.
   return (
-    <svg width="16" height="18" viewBox="0 0 16 18" fill="none" aria-hidden="true">
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style={{ color }}>
+      <path d="M0 0h24v24H0z" fill="none" />
+      <rect width="12" height="10" x="6" y="2" fill="currentColor" rx="1" ry="1" />
       <path
-        d="M4 2.5a1.5 1.5 0 013 0V8h2V2.5a1.5 1.5 0 013 0V9a1 1 0 01-1 1H5a1 1 0 01-1-1V2.5z"
-        fill={color}
+        fill="currentColor"
+        d="M4 15v2c0 .55.45 1 1 1h1v4h2v-4h8v4h2v-4h1c.55 0 1-.45 1-1v-2c0-.55-.45-1-1-1H5c-.55 0-1 .45-1 1"
       />
-      <path d="M4.5 10.5h7l-.5 3.5H5l-.5-3.5z" fill={color} />
-      <path d="M5 14v3M11 14v3" stroke={color} strokeWidth="1.4" strokeLinecap="round" />
     </svg>
   );
 }

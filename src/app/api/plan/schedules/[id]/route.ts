@@ -10,7 +10,7 @@ async function scheduleId(params: Promise<{ id: string }>): Promise<number | nul
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-/** Toggle the ♥ (liked) flag or replace a schedule's sections. */
+/** Rename a schedule, toggle its ♥ (liked) flag, or replace its sections. */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -22,7 +22,10 @@ export async function PATCH(
   if (!id) return NextResponse.json({ message: "Invalid schedule id." }, { status: 400 });
 
   const body = await request.json().catch(() => ({}));
-  const patch: { liked?: boolean; sectionKeys?: string[] } = {};
+  const patch: { title?: string; liked?: boolean; sectionKeys?: string[] } = {};
+  if (typeof body.title === "string" && body.title.trim().length <= 100) {
+    patch.title = body.title.trim();
+  }
   if (typeof body.liked === "boolean") patch.liked = body.liked;
   if (
     Array.isArray(body.keys) &&

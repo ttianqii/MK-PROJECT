@@ -84,7 +84,7 @@ export default async function RegistrationResultPage() {
               <h2 className="mb-2 text-xl font-bold uppercase tracking-wide text-gray-800">
                 Schedule
               </h2>
-              <TimetableGrid sections={sections} frameless />
+              <TimetableGrid sections={sections} />
             </section>
 
             {/* One card per registered course section */}

@@ -141,6 +141,7 @@ export const planSchedules = mysqlTable(
       .notNull()
       .references(() => plans.id, { onDelete: "cascade" }),
     position: int("position").notNull(), // display order within the plan
+    title: varchar("title", { length: 100 }).notNull().default(""), // "" falls back to "Schedule N"
     liked: boolean("liked").notNull().default(false), // the ♥ button
     sectionKeys: json("section_keys").$type<string[]>().notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),

@@ -13,6 +13,7 @@ import PopUpAlert from "./PopUpAlert";
 
 export interface PlanViewSchedule {
   id: number;
+  title: string;
   liked: boolean;
   sections: PlanSection[];
 }
@@ -37,6 +38,29 @@ export default function PlanView({
   const [busyId, setBusyId] = useState<number | null>(null);
   // Optimistic ♥ state so the heart flips instantly.
   const [likedOverride, setLikedOverride] = useState<Record<number, boolean>>({});
+  // The schedule currently being renamed, and its in-progress text.
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [titleDraft, setTitleDraft] = useState("");
+
+  const startEditing = (s: PlanViewSchedule, fallbackLabel: string) => {
+    setTitleDraft(s.title || fallbackLabel);
+    setEditingId(s.id);
+  };
+
+  const saveTitle = async (s: PlanViewSchedule, fallbackLabel: string) => {
+    setEditingId(null);
+    const trimmed = titleDraft.trim();
+    const next = trimmed === fallbackLabel ? "" : trimmed;
+    if (next === s.title) return;
+
+    const res = await fetch(`/api/plan/schedules/${s.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: next }),
+    });
+    if (res.ok) router.refresh();
+    else PopUpAlert("Rename failed", "Could not rename the schedule.", "error");
+  };
 
   const toggleLike = async (s: PlanViewSchedule) => {
     const next = !(likedOverride[s.id] ?? s.liked);
@@ -122,15 +146,48 @@ export default function PlanView({
           </div>
         ) : (
           schedules.map((s, i) => {
-            const label = `Schedule ${i + 1}`;
+            const fallbackLabel = `Schedule ${i + 1}`;
+            const label = s.title || fallbackLabel;
             const liked = likedOverride[s.id] ?? s.liked;
+            const isEditing = editingId === s.id;
             return (
-              <section key={s.id} className="rounded-2xl bg-gray-200/60 p-4 shadow-sm sm:p-5">
+              <section
+                key={s.id}
+                className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5"
+              >
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <h2 className="text-xl font-bold uppercase tracking-wide text-gray-800">
-                    {label}
-                  </h2>
-                  <div className="flex items-center gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    {isEditing ? (
+                      <input
+                        autoFocus
+                        value={titleDraft}
+                        onChange={(e) => setTitleDraft(e.target.value)}
+                        onBlur={() => saveTitle(s, fallbackLabel)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") e.currentTarget.blur();
+                          if (e.key === "Escape") setEditingId(null);
+                        }}
+                        maxLength={100}
+                        aria-label="Schedule name"
+                        className="w-40 rounded-md border border-gray-300 px-2 py-0.5 text-xl font-bold uppercase tracking-wide text-gray-800 focus:border-blue-500 focus:outline-none"
+                      />
+                    ) : (
+                      <h2 className="truncate text-xl font-bold uppercase tracking-wide text-gray-800">
+                        {label}
+                      </h2>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => startEditing(s, fallbackLabel)}
+                      aria-label={`Rename ${label}`}
+                      className="shrink-0 text-gray-400 hover:text-gray-700"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
                     <span className="text-gray-500" aria-hidden="true">
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
                         <rect x="3" y="5" width="18" height="16" rx="2" />
@@ -178,7 +235,7 @@ export default function PlanView({
                     The classes saved in this schedule are no longer offered this term.
                   </p>
                 ) : (
-                  <TimetableGrid sections={s.sections} frameless />
+                  <TimetableGrid sections={s.sections} />
                 )}
 
                 <button

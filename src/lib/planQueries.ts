@@ -78,7 +78,7 @@ export async function addSchedule(
 export async function updateSchedule(
   studentDbId: number,
   scheduleId: number,
-  patch: { liked?: boolean; sectionKeys?: string[] }
+  patch: { title?: string; liked?: boolean; sectionKeys?: string[] }
 ): Promise<boolean> {
   const owned = await getOwnedSchedule(studentDbId, scheduleId);
   if (!owned) return false;

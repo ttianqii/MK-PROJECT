@@ -24,6 +24,7 @@ export default async function PlanPage() {
   const byKey = new Map(groupSections(scheduleData.slots).map((s) => [s.key, s]));
   const resolved: PlanViewSchedule[] = schedules.map((s) => ({
     id: s.id,
+    title: s.title,
     liked: s.liked,
     sections: s.sectionKeys
       .map((k) => byKey.get(k))
