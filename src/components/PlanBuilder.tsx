@@ -8,8 +8,10 @@ import type { RecommendedCourse } from "@/lib/recommendations";
 import {
   detectConflicts,
   formatMinutes,
+  groupCourses,
   groupSections,
   sectionColors,
+  sectionSeats,
   type PlanSection,
 } from "@/lib/timetable";
 import TimetableGrid from "./TimetableGrid";
@@ -33,6 +35,36 @@ function meetingLabel(s: PlanSection): string {
     .join("  •  ");
 }
 
+interface StoredPlan {
+  subjects: string[];
+  chosen: Record<string, string>;
+}
+
+/** Read the saved plan, migrating the old flat section-key array if present. */
+function loadStored(): StoredPlan {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { subjects: [], chosen: {} };
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      const subjects: string[] = [];
+      const chosen: Record<string, string> = {};
+      for (const key of parsed) {
+        const code = String(key).split("·")[0];
+        if (!subjects.includes(code)) subjects.push(code);
+        chosen[code] = key;
+      }
+      return { subjects, chosen };
+    }
+    if (parsed && typeof parsed === "object") {
+      return { subjects: parsed.subjects ?? [], chosen: parsed.chosen ?? {} };
+    }
+  } catch {
+    /* ignore corrupt storage */
+  }
+  return { subjects: [], chosen: {} };
+}
+
 export default function PlanBuilder({
   data,
   recommendations = [],
@@ -42,56 +74,91 @@ export default function PlanBuilder({
 }) {
   const allSections = useMemo(() => groupSections(data.slots), [data.slots]);
   const byKey = useMemo(() => new Map(allSections.map((s) => [s.key, s])), [allSections]);
+  const courses = useMemo(() => groupCourses(allSections), [allSections]);
+  const courseByCode = useMemo(() => new Map(courses.map((c) => [c.courseCode, c])), [courses]);
 
   const router = useRouter();
-  const [keys, setKeys] = useState<string[]>([]);
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const [chosen, setChosen] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
-  const [query, setQuery] = useState("");
-  const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Add-subject sheet + section picker.
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [tab, setTab] = useState<"recommend" | "search">("recommend");
+  const [query, setQuery] = useState("");
+  const [pickerCode, setPickerCode] = useState<string | null>(null);
 
   // Load / persist the plan in localStorage.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      // localStorage is only readable after mount; setting state here (not in
-      // the initializer) keeps server and client first renders identical.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (raw) setKeys(JSON.parse(raw));
-    } catch {
-      /* ignore corrupt storage */
-    }
+    // Hydrate from localStorage after mount (it's unreadable during SSR, so the
+    // first render must match the server's empty state, then fill in here).
+    const stored = loadStored();
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setSubjects(stored.subjects);
+    setChosen(stored.chosen);
     setLoaded(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   useEffect(() => {
-    if (loaded) localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
-  }, [keys, loaded]);
+    if (loaded) localStorage.setItem(STORAGE_KEY, JSON.stringify({ subjects, chosen }));
+  }, [subjects, chosen, loaded]);
+
+  // The bottom-nav "+" (see DashboardHeader) opens the sheet via this event.
+  useEffect(() => {
+    const open = () => setSheetOpen(true);
+    window.addEventListener("mk:add-subject", open);
+    return () => window.removeEventListener("mk:add-subject", open);
+  }, []);
+
+  // Escape closes the picker first, then the sheet.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (pickerCode) setPickerCode(null);
+      else if (sheetOpen) setSheetOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pickerCode, sheetOpen]);
 
   const planned = useMemo(
-    () => keys.map((k) => byKey.get(k)).filter((s): s is PlanSection => Boolean(s)),
-    [keys, byKey]
+    () =>
+      subjects
+        .map((code) => (chosen[code] ? byKey.get(chosen[code]) : undefined))
+        .filter((s): s is PlanSection => Boolean(s)),
+    [subjects, chosen, byKey]
   );
 
-  // Clashes between planned sections: duplicate course code and/or time overlap.
-  const { timeSet, dupSet, all: conflicting } = useMemo(
-    () => detectConflicts(planned),
-    [planned]
-  );
-
-  const plannedCodes = useMemo(
-    () => new Set(planned.map((s) => s.courseCode)),
-    [planned]
-  );
-
-  // Same positional palette the grid uses, so the list dots match the blocks.
+  const { timeSet, dupSet, all: conflicting } = useMemo(() => detectConflicts(planned), [planned]);
   const plannedColors = useMemo(() => sectionColors(planned), [planned]);
 
-  const add = (key: string) => setKeys((ks) => (ks.includes(key) ? ks : [...ks, key]));
-  const remove = (key: string) => setKeys((ks) => ks.filter((k) => k !== key));
+  const addSubject = (code: string) =>
+    setSubjects((s) => (s.includes(code) ? s : [...s, code]));
+
+  const removeSubject = (code: string) => {
+    setSubjects((s) => s.filter((c) => c !== code));
+    setChosen((c) => {
+      const next = { ...c };
+      delete next[code];
+      return next;
+    });
+  };
+
+  const chooseSection = (code: string, key: string) => {
+    setChosen((c) => ({ ...c, [code]: key }));
+    setPickerCode(null);
+  };
 
   // Persist the current selection as a new schedule card on the My Plan page.
   const saveToPlan = async () => {
+    const keys = subjects.map((c) => chosen[c]).filter(Boolean);
+    if (keys.length === 0) {
+      PopUpAlert("Nothing to save", "Add a subject and choose a section first.", "warning");
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/plan/schedules", {
@@ -114,21 +181,21 @@ export default function PlanBuilder({
   };
 
   const q = query.trim().toLowerCase();
-  const results = useMemo(() => {
+  const searchResults = useMemo(() => {
     if (!q) return [];
-    return allSections
+    return courses
       .filter(
-        (s) =>
-          s.courseCode.toLowerCase().includes(q) ||
-          s.courseName.toLowerCase().includes(q) ||
-          (s.section?.toLowerCase().includes(q) ?? false)
+        (c) =>
+          c.courseCode.toLowerCase().includes(q) || c.courseName.toLowerCase().includes(q)
       )
       .slice(0, 40);
-  }, [allSections, q]);
+  }, [courses, q]);
+
+  const pickerCourse = pickerCode ? courseByCode.get(pickerCode) : null;
 
   return (
     <div className="space-y-6">
-      {/* Same card the saved schedules use on My Plan */}
+      {/* Timetable of the chosen sections */}
       <ScheduleCard>
         <div className="mb-2">
           <EditableTitle value={title} placeholder="New Schedule" onSave={setTitle} />
@@ -146,186 +213,365 @@ export default function PlanBuilder({
         </div>
       ) : null}
 
-      {recommendations.length > 0 ? (
-        <section className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
-          <div className="mb-1 flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-blue-900">Recommended this term</h2>
-            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-              {recommendations.length}
-            </span>
-          </div>
-          <p className="mb-3 text-xs text-blue-800/80">
-            Courses from your Study Plan that you still need and that are offered this term. Click one
-            to find its sections.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {recommendations.map((r) => {
-              const inPlan = plannedCodes.has(r.code);
-              return (
-                <button
-                  key={r.code}
-                  type="button"
-                  onClick={() => setQuery(r.code)}
-                  title={`${r.name}\n${r.category}${r.grade ? `\nprevious grade: ${r.grade}` : ""}\n${r.sectionCount} section${r.sectionCount === 1 ? "" : "s"} offered`}
-                  className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-left text-sm transition-colors ${
-                    inPlan
-                      ? "border-green-200 bg-green-50 text-green-800"
-                      : "border-blue-200 bg-white text-gray-800 hover:border-blue-400 hover:bg-blue-50"
-                  }`}
-                >
-                  <span className="font-mono font-semibold">{r.code}</span>
-                  <span className="max-w-[10rem] truncate text-xs text-gray-500">{r.name}</span>
-                  {r.grade ? (
-                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700">
-                      {/^W$/i.test(r.grade) ? "withdrawn (W)" : `retake ${r.grade}`}
-                    </span>
-                  ) : null}
-                  <span className="text-xs text-gray-400">
-                    {inPlan ? "✓ in plan" : `${r.sectionCount} S.`}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
-
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Add classes */}
-        <section className="space-y-3">
+      {/* Subject list */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-            Add classes
+            Your subjects {subjects.length > 0 ? `(${subjects.length})` : ""}
           </h2>
-          <div className="relative">
-            <svg
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                fillRule="evenodd"
-                d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
-                clipRule="evenodd"
-              />
+          <button
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-gray-700"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
             </svg>
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by course code, name, or section…"
-              aria-label="Search classes to add"
-              className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
+            Add subject
+          </button>
+        </div>
 
-          <div className="max-h-96 space-y-2 overflow-y-auto">
-            {q && results.length === 0 ? (
-              <p className="px-1 py-2 text-sm text-gray-500">No classes match “{query}”.</p>
-            ) : null}
-            {results.map((s) => {
-              const added = keys.includes(s.key);
+        {subjects.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
+            No subjects yet. Tap <span className="font-semibold text-gray-700">Add subject</span> to
+            pick from your recommendations or search the catalog.
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {subjects.map((code) => {
+              const course = courseByCode.get(code);
+              const chosenKey = chosen[code];
+              const chosenSec = chosenKey ? byKey.get(chosenKey) : undefined;
+              const seats = chosenSec ? sectionSeats(chosenSec) : null;
+              const sectionCount = course?.sections.length ?? 0;
               return (
-                <div
-                  key={s.key}
-                  className="flex items-start justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3"
+                <li
+                  key={code}
+                  className="flex items-stretch justify-between gap-2 rounded-lg border border-gray-200 bg-white"
                 >
-                  <div className="min-w-0">
-                    <p className="text-sm">
-                      <span className="font-mono font-semibold text-gray-900">{s.courseCode}</span>
-                      {s.section ? <span className="ml-2 text-gray-500">S.{s.section}</span> : null}
-                    </p>
-                    <p className="truncate text-xs text-gray-500">{s.courseName}</p>
-                    <p className="mt-1 text-xs text-gray-400">{meetingLabel(s)}</p>
-                  </div>
                   <button
                     type="button"
-                    onClick={() => add(s.key)}
-                    disabled={added}
-                    className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium ${
-                      added
-                        ? "cursor-default bg-gray-100 text-gray-400"
-                        : "bg-gray-900 text-white hover:bg-gray-700"
-                    }`}
+                    onClick={() => setPickerCode(code)}
+                    className="flex min-w-0 flex-1 items-start gap-3 rounded-l-lg p-3 text-left hover:bg-gray-50"
                   >
-                    {added ? "Added" : "Add"}
-                  </button>
-                </div>
-              );
-            })}
-            {!q ? (
-              <p className="px-1 py-2 text-sm text-gray-400">
-                Start typing to find classes to add to your plan.
-              </p>
-            ) : null}
-          </div>
-        </section>
-
-        {/* Your plan */}
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-            Your plan {planned.length > 0 ? `(${planned.length})` : ""}
-          </h2>
-          {planned.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
-              No classes yet. Search and add sections to build your next-term timetable.
-            </div>
-          ) : (
-            <ul className="space-y-2">
-              {planned.map((s) => (
-                <li
-                  key={s.key}
-                  className="flex items-start justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3"
-                >
-                  <div className="flex min-w-0 gap-3">
                     <span
                       className="mt-1 h-3 w-3 shrink-0 rounded-full"
-                      style={{ backgroundColor: plannedColors.get(s.key) }}
+                      style={{ backgroundColor: chosenSec ? plannedColors.get(chosenSec.key) : "#D1D5DB" }}
                     />
                     <div className="min-w-0">
                       <p className="text-sm">
-                        <span className="font-mono font-semibold text-gray-900">{s.courseCode}</span>
-                        {s.section ? <span className="ml-2 text-gray-500">S.{s.section}</span> : null}
-                        {dupSet.has(s.key) ? (
+                        <span className="font-mono font-semibold text-gray-900">{code}</span>
+                        {chosenSec?.section ? (
+                          <span className="ml-2 text-gray-500">S.{chosenSec.section}</span>
+                        ) : null}
+                        {dupSet.has(chosenSec?.key ?? "") ? (
                           <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
-                            duplicate course
+                            duplicate
                           </span>
                         ) : null}
-                        {timeSet.has(s.key) ? (
+                        {timeSet.has(chosenSec?.key ?? "") ? (
                           <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
                             time conflict
                           </span>
                         ) : null}
                       </p>
-                      <p className="truncate text-xs text-gray-500">{s.courseName}</p>
-                      <p className="mt-1 text-xs text-gray-400">{meetingLabel(s)}</p>
+                      <p className="truncate text-xs text-gray-500">{course?.courseName ?? code}</p>
+                      {/* Subtitle: chosen section + seats, or the section count to pick from */}
+                      {chosenSec && seats ? (
+                        <p className="mt-1 text-xs text-gray-400">
+                          {meetingLabel(chosenSec)}
+                          <span className={`ml-1 font-medium ${seats.full ? "text-red-600" : "text-gray-500"}`}>
+                            · seats {seats.taken}/{seats.total}
+                          </span>
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-xs font-medium text-blue-600">
+                          {sectionCount} section{sectionCount === 1 ? "" : "s"} available — tap to choose
+                        </p>
+                      )}
                     </div>
-                  </div>
+                  </button>
                   <button
                     type="button"
-                    onClick={() => remove(s.key)}
-                    aria-label={`Remove ${s.courseCode}`}
-                    className="shrink-0 rounded-md px-2 py-1 text-sm text-gray-400 hover:bg-gray-100 hover:text-red-600"
+                    onClick={() => removeSubject(code)}
+                    aria-label={`Remove ${code}`}
+                    className="shrink-0 rounded-r-lg px-3 text-sm text-gray-400 hover:bg-gray-100 hover:text-red-600"
                   >
                     ✕
                   </button>
                 </li>
-              ))}
-            </ul>
-          )}
+              );
+            })}
+          </ul>
+        )}
 
-          {planned.length > 0 ? (
+        {subjects.length > 0 ? (
+          <button
+            type="button"
+            onClick={saveToPlan}
+            disabled={saving}
+            className="w-full rounded-full bg-gray-900 py-2.5 text-sm font-semibold uppercase tracking-wide text-white shadow hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {saving ? "Saving…" : "Save to My Plan"}
+          </button>
+        ) : null}
+      </section>
+
+      {/* ── Add-subject slide-up sheet ─────────────────────────────────────── */}
+      <div
+        className={`fixed inset-0 z-40 ${sheetOpen ? "" : "pointer-events-none"}`}
+        aria-hidden={!sheetOpen}
+      >
+        <div
+          onClick={() => setSheetOpen(false)}
+          className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ${
+            sheetOpen ? "opacity-100" : "opacity-0"
+          }`}
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Add subject"
+          className={`absolute inset-x-0 bottom-0 mx-auto flex max-h-[85vh] w-full max-w-xl flex-col rounded-t-3xl bg-white shadow-2xl transition-transform duration-300 ease-out ${
+            sheetOpen ? "translate-y-0" : "translate-y-full"
+          }`}
+        >
+          <div className="flex justify-center pt-3">
+            <span className="h-1.5 w-10 rounded-full bg-gray-300" />
+          </div>
+          <div className="flex items-center justify-between px-5 pb-3 pt-2">
+            <h2 className="text-lg font-bold text-gray-900">Add subject</h2>
             <button
               type="button"
-              onClick={saveToPlan}
-              disabled={saving}
-              className="w-full rounded-full bg-gray-900 py-2.5 text-sm font-semibold uppercase tracking-wide text-white shadow hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => setSheetOpen(false)}
+              aria-label="Close"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             >
-              {saving ? "Saving…" : "Save to My Plan"}
+              ✕
             </button>
-          ) : null}
-        </section>
+          </div>
+
+          {/* Tabs */}
+          <div className="mx-5 mb-3 grid grid-cols-2 gap-1 rounded-full bg-gray-100 p-1 text-sm font-semibold">
+            <button
+              type="button"
+              onClick={() => setTab("recommend")}
+              className={`rounded-full py-2 transition-colors ${
+                tab === "recommend" ? "bg-rose-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Recommend
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("search")}
+              className={`rounded-full py-2 transition-colors ${
+                tab === "search" ? "bg-rose-500 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Search
+            </button>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
+            {tab === "recommend" ? (
+              recommendations.length === 0 ? (
+                <p className="py-8 text-center text-sm text-gray-500">
+                  No recommendations — every course in your plan is already passed or not offered
+                  this term. Try the Search tab.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {recommendations.map((r) => (
+                    <SubjectRow
+                      key={r.code}
+                      code={r.code}
+                      name={r.name}
+                      sectionCount={r.sectionCount}
+                      grade={r.grade}
+                      added={subjects.includes(r.code)}
+                      onAdd={() => addSubject(r.code)}
+                    />
+                  ))}
+                </ul>
+              )
+            ) : (
+              <div className="space-y-3">
+                <div className="relative">
+                  <svg
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <input
+                    type="search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search by course code or name…"
+                    aria-label="Search subjects"
+                    className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                {q && searchResults.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-gray-500">No subjects match “{query}”.</p>
+                ) : null}
+                {!q ? (
+                  <p className="py-6 text-center text-sm text-gray-400">
+                    Start typing to find a subject to add.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {searchResults.map((c) => (
+                      <SubjectRow
+                        key={c.courseCode}
+                        code={c.courseCode}
+                        name={c.courseName}
+                        sectionCount={c.sections.length}
+                        added={subjects.includes(c.courseCode)}
+                        onAdd={() => addSubject(c.courseCode)}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* ── Section picker popup ───────────────────────────────────────────── */}
+      {pickerCode && pickerCourse ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+          <div
+            onClick={() => setPickerCode(null)}
+            className="absolute inset-0 bg-black/40"
+            aria-hidden="true"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Choose a section for ${pickerCode}`}
+            className="relative flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl"
+          >
+            <header className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
+              <div className="min-w-0">
+                <p className="font-mono text-base font-bold text-gray-900">{pickerCode}</p>
+                <p className="truncate text-sm text-gray-500">{pickerCourse.courseName}</p>
+                <p className="mt-0.5 text-xs uppercase tracking-wide text-gray-400">Choose a section</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPickerCode(null)}
+                aria-label="Close"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </header>
+
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
+              {pickerCourse.sections.map((sec) => {
+                const seats = sectionSeats(sec);
+                const isChosen = chosen[pickerCode] === sec.key;
+                const pct = Math.min(100, Math.round((seats.taken / seats.total) * 100));
+                const barColor = seats.full ? "#DC2626" : pct >= 80 ? "#EA580C" : "#16A34A";
+                return (
+                  <button
+                    key={sec.key}
+                    type="button"
+                    disabled={seats.full && !isChosen}
+                    onClick={() => chooseSection(pickerCode, sec.key)}
+                    className={`w-full rounded-xl border p-3 text-left transition-colors ${
+                      isChosen
+                        ? "border-green-300 bg-green-50"
+                        : seats.full
+                          ? "cursor-not-allowed border-gray-200 bg-gray-50 opacity-70"
+                          : "border-gray-200 bg-white hover:border-blue-400 hover:bg-blue-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-gray-900">
+                        Section {sec.section ?? "—"}
+                      </p>
+                      {seats.full ? (
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                          FULL
+                        </span>
+                      ) : isChosen ? (
+                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
+                          Selected
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-0.5 text-xs text-gray-500">{meetingLabel(sec)}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200">
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+                      </div>
+                      <span className="w-14 shrink-0 text-right text-xs font-medium text-gray-600">
+                        {seats.taken}/{seats.total}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+/** One selectable course row in the add-subject sheet. */
+function SubjectRow({
+  code,
+  name,
+  sectionCount,
+  grade,
+  added,
+  onAdd,
+}: {
+  code: string;
+  name: string;
+  sectionCount: number;
+  grade?: string;
+  added: boolean;
+  onAdd: () => void;
+}) {
+  return (
+    <li className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3">
+      <div className="min-w-0">
+        <p className="text-sm">
+          <span className="font-mono font-semibold text-gray-900">{code}</span>
+          {grade ? (
+            <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700">
+              {/^W$/i.test(grade) ? "withdrawn (W)" : `retake ${grade}`}
+            </span>
+          ) : null}
+        </p>
+        <p className="truncate text-xs text-gray-500">{name}</p>
+        <p className="mt-0.5 text-xs text-gray-400">
+          {sectionCount} section{sectionCount === 1 ? "" : "s"}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onAdd}
+        disabled={added}
+        className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium ${
+          added ? "cursor-default bg-green-100 text-green-700" : "bg-gray-900 text-white hover:bg-gray-700"
+        }`}
+      >
+        {added ? "Added ✓" : "Add +"}
+      </button>
+    </li>
   );
 }

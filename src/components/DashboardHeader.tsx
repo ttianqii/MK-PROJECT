@@ -40,6 +40,14 @@ const NAV: { href: string; label: string; icon: ReactNode }[] = [
   },
 ];
 
+// Shown in place of the "My Plan" center item's icon while the builder is
+// open, so the bottom nav's middle button reads as a "+ Plan" add action.
+const PLUS_ICON = (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+
 export interface HeaderStudent {
   studentId: string;
   nameEn: string;
@@ -111,26 +119,53 @@ export default function DashboardHeader({ student }: { student: HeaderStudent })
       >
         {NAV.map((item) => {
           const active = isActive(item.href, pathname);
+          // On the plan builder, the center "My Plan" item becomes a "+ Add
+          // subject" button that opens the slide-up add-subject sheet (handled
+          // inside PlanBuilder, which listens for this event) instead of
+          // navigating away.
+          const onBuilder =
+            item.href === "/dashboard/plan" && pathname.startsWith("/dashboard/plan/builder");
+
+          const label = (
+            <span
+              className={`overflow-hidden whitespace-nowrap text-xs font-semibold transition-all duration-300 ease-out ${
+                active || onBuilder ? "ml-2 max-w-32 opacity-100" : "ml-0 max-w-0 opacity-0"
+              }`}
+            >
+              {onBuilder ? "Add subject" : item.label}
+            </span>
+          );
+          const className = `flex items-center rounded-full px-4 py-2.5 transition-colors duration-300 ease-out ${
+            active ? "bg-white text-gray-900" : "text-gray-400 hover:text-white"
+          }`;
+
+          if (onBuilder) {
+            return (
+              <button
+                key={item.href}
+                type="button"
+                aria-label="Add subject"
+                onClick={() => window.dispatchEvent(new CustomEvent("mk:add-subject"))}
+                className={className}
+              >
+                {PLUS_ICON}
+                {label}
+              </button>
+            );
+          }
+
           return (
             <Link
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
               aria-label={item.label}
-              className={`flex items-center rounded-full px-4 py-2.5 transition-colors duration-300 ease-out ${
-                active ? "bg-white text-gray-900" : "text-gray-400 hover:text-white"
-              }`}
+              className={className}
             >
               {item.icon}
               {/* Label stays mounted so it can slide open/closed as the
                   active pill morphs between items */}
-              <span
-                className={`overflow-hidden whitespace-nowrap text-xs font-semibold transition-all duration-300 ease-out ${
-                  active ? "ml-2 max-w-32 opacity-100" : "ml-0 max-w-0 opacity-0"
-                }`}
-              >
-                {item.label}
-              </span>
+              {label}
             </Link>
           );
         })}
