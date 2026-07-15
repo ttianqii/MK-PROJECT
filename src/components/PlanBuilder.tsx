@@ -13,6 +13,8 @@ import {
   type PlanSection,
 } from "@/lib/timetable";
 import TimetableGrid from "./TimetableGrid";
+import EditableTitle from "./EditableTitle";
+import ScheduleCard from "./ScheduleCard";
 
 const STORAGE_KEY = "sp:nextTermPlan";
 const DAY_ABBR: Record<string, string> = {
@@ -46,6 +48,7 @@ export default function PlanBuilder({
   const [loaded, setLoaded] = useState(false);
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
+  const [title, setTitle] = useState("");
 
   // Load / persist the plan in localStorage.
   useEffect(() => {
@@ -94,14 +97,16 @@ export default function PlanBuilder({
       const res = await fetch("/api/plan/schedules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keys }),
+        body: JSON.stringify({ keys, title }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         PopUpAlert("Save failed", data.message ?? "Please try again.", "error");
         return;
       }
-      PopUpAlert("Saved!", "Added to My Plan as a new schedule.", "success");
+      PopUpAlert("Saved!", "Added to My Plan as a new schedule.", "success", {
+        imageUrl: "/save.gif",
+      });
       router.push("/dashboard/plan");
     } finally {
       setSaving(false);
@@ -123,7 +128,13 @@ export default function PlanBuilder({
 
   return (
     <div className="space-y-6">
-      <TimetableGrid sections={planned} conflictKeys={conflicting} />
+      {/* Same card the saved schedules use on My Plan */}
+      <ScheduleCard>
+        <div className="mb-2">
+          <EditableTitle value={title} placeholder="New Schedule" onSave={setTitle} />
+        </div>
+        <TimetableGrid sections={planned} conflictKeys={conflicting} />
+      </ScheduleCard>
 
       {conflicting.size > 0 ? (
         <div className="space-y-1 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

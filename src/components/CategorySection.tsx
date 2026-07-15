@@ -52,13 +52,19 @@ function groupProgress(group: CourseGroup) {
 }
 
 function CreditBar({ earned, required, pct }: { earned: number; required: number; pct: number }) {
+  const done = earned >= required;
   return (
-    <span className="flex w-full items-center gap-3 sm:w-auto">
-      <span className="text-sm text-gray-500">
-        {earned} / {required} credits
+    <span className="flex w-full items-center gap-2.5 pl-8 sm:w-auto sm:pl-0">
+      <span className="whitespace-nowrap text-xs text-gray-500 sm:text-sm">
+        <span className={`font-semibold ${done ? "text-emerald-600" : "text-gray-900"}`}>{earned}</span>
+        {" / "}
+        {required} credits
       </span>
-      <span className="block h-1.5 w-24 overflow-hidden rounded-full bg-gray-200">
-        <span className="block h-full rounded-full bg-green-500" style={{ width: `${pct}%` }} />
+      <span className="block h-1.5 w-16 overflow-hidden rounded-full bg-gray-200 sm:w-24">
+        <span
+          className="block h-full rounded-full bg-emerald-500"
+          style={{ width: `${pct}%` }}
+        />
       </span>
     </span>
   );
@@ -76,30 +82,59 @@ function CourseRow({ course }: { course: Course }) {
   );
 }
 
-// One group's course table, including its column headers.
+// One course as a stacked card row — the phone-friendly rendering, where a
+// five-column table would force sideways scrolling.
+function CourseCard({ course }: { course: Course }) {
+  return (
+    <li className="flex items-start justify-between gap-3 py-2.5 first:pt-1">
+      <div className="min-w-0">
+        <p className="font-mono text-xs text-gray-500">{course.code}</p>
+        <p className="mt-0.5 text-sm leading-snug text-gray-800">{course.name}</p>
+        <p className="mt-0.5 text-xs text-gray-400">
+          {course.credit} หน่วยกิต
+          {course.note ? <span> · {course.note}</span> : null}
+        </p>
+      </div>
+      <div className="shrink-0 pt-0.5">{gradeBadge(course.grade)}</div>
+    </li>
+  );
+}
+
+// One group's courses: stacked cards on phones, a full table from sm up.
 function GroupTable({ group }: { group: CourseGroup }) {
   return (
-    <div className="overflow-x-auto">
-      <div className="min-w-[520px] px-4 pb-3 pt-1 sm:px-6">
-        <table className="w-full table-fixed text-sm">
-          <Cols />
-          <thead>
-            <tr className="text-left text-xs font-medium text-gray-400">
-              <th className="py-2 pr-3 font-medium">รหัสวิชา</th>
-              <th className="py-2 pr-3 font-medium">ชื่อวิชา</th>
-              <th className="py-2 pr-3 text-center font-medium">หน่วยกิต</th>
-              <th className="py-2 pr-3 text-center font-medium">เกรด</th>
-              <th className="py-2 font-medium">วิชาพื้นความรู้</th>
-            </tr>
-          </thead>
-          <tbody>
-            {group.courses.map((c, i) => (
-              <CourseRow key={i} course={c} />
-            ))}
-          </tbody>
-        </table>
+    <>
+      {/* Phone: stacked list, no horizontal scrolling. Left padding matches
+          the nested collapse header so course rows line up under its label. */}
+      <ul className="divide-y divide-gray-100 pb-2 pl-8 pr-4 pt-1 sm:hidden">
+        {group.courses.map((c, i) => (
+          <CourseCard key={i} course={c} />
+        ))}
+      </ul>
+
+      {/* Tablet/desktop: the classic table */}
+      <div className="hidden overflow-x-auto sm:block">
+        <div className="min-w-130 pb-3 pl-8 pr-4 pt-1 sm:pl-10 sm:pr-6">
+          <table className="w-full table-fixed text-sm">
+            <Cols />
+            <thead>
+              <tr className="text-left text-xs font-medium text-gray-400">
+                <th className="py-2 pr-3 font-medium">รหัสวิชา</th>
+                <th className="py-2 pr-3 font-medium">ชื่อวิชา</th>
+                <th className="py-2 pr-3 text-center font-medium">หน่วยกิต</th>
+                <th className="py-2 pr-3 text-center font-medium">เกรด</th>
+                <th className="py-2 font-medium">วิชาพื้นความรู้</th>
+              </tr>
+            </thead>
+            <tbody>
+              {group.courses.map((c, i) => (
+                <CourseRow key={i} course={c} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

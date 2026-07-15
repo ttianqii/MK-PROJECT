@@ -1,17 +1,18 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function LogoutButton() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogout = async () => {
     setIsLoading(true);
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/");
-    router.refresh();
+    // credentials + a hard navigation, for the same reason as the login
+    // form: some mobile browsers won't reliably apply a Set-Cookie response
+    // from fetch() without explicit credentials, and a full page load
+    // guarantees the cleared session is respected immediately.
+    await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+    window.location.href = "/";
   };
 
   return (

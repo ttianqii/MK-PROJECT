@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/serverAuth";
 import { getStudentByUsername } from "@/lib/planQueries";
 import { getSchedule } from "@/lib/scheduleQueries";
-import DashboardHeader from "@/components/DashboardHeader";
 import ScheduleBrowser from "@/components/ScheduleBrowser";
 
 export const dynamic = "force-dynamic";
@@ -17,12 +16,7 @@ export default async function SchedulePage() {
   const schedule = await getSchedule();
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <DashboardHeader
-        student={{ studentId: student.studentId, nameEn: student.nameEn, photo: student.photo }}
-      />
-
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 md:pb-8">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-gray-900">Class schedule</h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -43,7 +37,6 @@ export default async function SchedulePage() {
         ) : (
           <ScheduleBrowser data={schedule} />
         )}
-      </main>
-    </div>
+    </main>
   );
 }

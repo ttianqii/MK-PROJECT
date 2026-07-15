@@ -60,13 +60,14 @@ export async function getOrCreatePlan(studentDbId: number): Promise<PlanWithSche
 /** Append a schedule to the plan and return its row. */
 export async function addSchedule(
   studentDbId: number,
-  sectionKeys: string[]
+  sectionKeys: string[],
+  title = ""
 ): Promise<PlanScheduleRow> {
   const { plan, schedules } = await getOrCreatePlan(studentDbId);
   const position = (schedules.at(-1)?.position ?? 0) + 1;
   const [{ id }] = await db
     .insert(planSchedules)
-    .values({ planId: plan.id, position, sectionKeys })
+    .values({ planId: plan.id, position, sectionKeys, title })
     .$returningId();
   // Any schedule change also counts as a plan update (drives "UPDATED AT …").
   await db.update(plans).set({ updatedAt: new Date() }).where(eq(plans.id, plan.id));

@@ -33,7 +33,7 @@ export default function ChecklistCategories({ categories }: { categories: Catego
     : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-5">
       <div className="relative">
         <svg
           className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
@@ -53,7 +53,7 @@ export default function ChecklistCategories({ categories }: { categories: Catego
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by course code or name…"
           aria-label="Search courses"
-          className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full rounded-full border border-transparent bg-white py-3 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition-shadow focus:border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
         />
       </div>
 
