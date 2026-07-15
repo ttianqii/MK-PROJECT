@@ -55,9 +55,12 @@ function assignLanes(items: Omit<Placed, "lane" | "conflict">[]): Placed[] {
 export default function TimetableGrid({
   sections,
   conflictKeys,
+  frameless = false,
 }: {
   sections: PlanSection[];
   conflictKeys?: Set<string>;
+  /** Drop the white card chrome so the grid can sit inside another card. */
+  frameless?: boolean;
 }) {
   const { start, end, ticks, rows } = useMemo(() => {
     const allMeetings = sections.flatMap((s) => s.meetings);
@@ -96,7 +99,13 @@ export default function TimetableGrid({
   const pctWidth = (a: number, b: number) => `${((b - a) / span) * 100}%`;
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div
+      className={
+        frameless
+          ? "overflow-x-auto"
+          : "overflow-x-auto rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+      }
+    >
       <div className="min-w-[720px]">
         {/* Time header */}
         <div className="flex" style={{ paddingLeft: LABEL_W }}>
@@ -181,7 +190,9 @@ export default function TimetableGrid({
           {sections.map((s) => (
             <span
               key={s.key}
-              className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700"
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium text-gray-700 ${
+                frameless ? "bg-white shadow-sm" : "bg-gray-100"
+              }`}
               title={`${s.courseCode}${s.section ? ` (${s.section})` : ""} · seats: ${s.capacity ?? "—"}`}
             >
               <SeatIcon color={colorFor(s.key)} />

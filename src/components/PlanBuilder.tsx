@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import PopUpAlert from "./PopUpAlert";
 import type { ScheduleData } from "@/lib/scheduleQueries";
 import type { RecommendedCourse } from "@/lib/recommendations";
 import {
@@ -39,9 +41,11 @@ export default function PlanBuilder({
   const allSections = useMemo(() => groupSections(data.slots), [data.slots]);
   const byKey = useMemo(() => new Map(allSections.map((s) => [s.key, s])), [allSections]);
 
+  const router = useRouter();
   const [keys, setKeys] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [query, setQuery] = useState("");
+  const [saving, setSaving] = useState(false);
 
   // Load / persist the plan in localStorage.
   useEffect(() => {
@@ -79,6 +83,27 @@ export default function PlanBuilder({
 
   const add = (key: string) => setKeys((ks) => (ks.includes(key) ? ks : [...ks, key]));
   const remove = (key: string) => setKeys((ks) => ks.filter((k) => k !== key));
+
+  // Persist the current selection as a new schedule card on the My Plan page.
+  const saveToPlan = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/plan/schedules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keys }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        PopUpAlert("Save failed", data.message ?? "Please try again.", "error");
+        return;
+      }
+      PopUpAlert("Saved!", "Added to My Plan as a new schedule.", "success");
+      router.push("/dashboard/plans");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const q = query.trim().toLowerCase();
   const results = useMemo(() => {
@@ -274,6 +299,17 @@ export default function PlanBuilder({
               ))}
             </ul>
           )}
+
+          {planned.length > 0 ? (
+            <button
+              type="button"
+              onClick={saveToPlan}
+              disabled={saving}
+              className="w-full rounded-full bg-rose-700 py-2.5 text-sm font-semibold uppercase tracking-wide text-white shadow hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Saving…" : "Save to My Plan"}
+            </button>
+          ) : null}
         </section>
       </div>
     </div>

@@ -3,6 +3,7 @@ import {
   int,
   varchar,
   json,
+  boolean,
   timestamp,
   uniqueIndex,
   index,
@@ -114,6 +115,59 @@ export const classSchedule = mysqlTable(
   ]
 );
 
+// A student's saved plan (the "Plan 1" header of the plan screen). One per
+// student; the schedules below hang off it.
+export const plans = mysqlTable(
+  "plans",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    studentId: int("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 100 }).notNull().default("Plan 1"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+  },
+  (t) => [uniqueIndex("plans_student_uq").on(t.studentId)]
+);
+
+// One saved timetable candidate inside a plan ("SCHEDULE 1", "SCHEDULE 2", …).
+// sectionKeys holds PlanSection keys (`${courseCode}·${section}`) resolved
+// against class_schedule at render time, mirroring the localStorage builder.
+export const planSchedules = mysqlTable(
+  "plan_schedules",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    planId: int("plan_id")
+      .notNull()
+      .references(() => plans.id, { onDelete: "cascade" }),
+    position: int("position").notNull(), // display order within the plan
+    liked: boolean("liked").notNull().default(false), // the ♥ button
+    sectionKeys: json("section_keys").$type<string[]>().notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+  },
+  (t) => [index("plan_schedules_plan_idx").on(t.planId)]
+);
+
+// The schedule a student actually registered (REGISTER button). One per
+// student per semester; re-registering replaces the section snapshot.
+export const registrations = mysqlTable(
+  "registrations",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    studentId: int("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+    semester: varchar("semester", { length: 64 }).notNull(),
+    sectionKeys: json("section_keys").$type<string[]>().notNull(),
+    registeredAt: timestamp("registered_at").notNull().defaultNow().onUpdateNow(),
+  },
+  (t) => [uniqueIndex("registrations_student_semester_uq").on(t.studentId, t.semester)]
+);
+
 export type StudentRow = typeof students.$inferSelect;
 export type ClassScheduleRow = typeof classSchedule.$inferSelect;
 export type NewClassScheduleRow = typeof classSchedule.$inferInsert;
+export type PlanRow = typeof plans.$inferSelect;
+export type PlanScheduleRow = typeof planSchedules.$inferSelect;
+export type RegistrationRow = typeof registrations.$inferSelect;

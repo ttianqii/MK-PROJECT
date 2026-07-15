@@ -7,6 +7,8 @@ import LogoutButton from "./LogoutButton";
 const NAV = [
   { href: "/dashboard", label: "Study Plan" },
   { href: "/dashboard/plan", label: "Plan next term" },
+  { href: "/dashboard/plans", label: "My Plan" },
+  { href: "/dashboard/registration", label: "Registration Result" },
 ];
 
 export default function DashboardHeader({ username }: { username: string }) {
