@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MK Study Plan",
+  title: "Study Plan",
   description:
     "Plan your courses, track your progress, and stay on top of your degree — a self-contained demo running on local data.",
 };

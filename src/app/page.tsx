@@ -7,7 +7,7 @@ export default async function Home() {
   return (
     <div className="flex flex-col flex-1 items-center justify-center bg-gray-100 px-4 py-8">
       <main className="flex w-full max-w-md flex-col items-center gap-6 rounded-md bg-white p-6 text-center shadow-xl sm:p-10">
-        <h1 className="text-3xl font-semibold tracking-tight text-gray-900">MK Study Plan</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-gray-900">Study Plan</h1>
         <p className="text-base leading-7 text-gray-500">
           Plan your courses, track your progress, and stay on top of your degree — a self-contained
           demo running on local data.
