@@ -34,13 +34,18 @@ const STUDENT = {
   totalCredits: "127",
   creditsEarned: "69",
   creditsTransferred: "-",
+  // Interleaved so the two-column card grid reads column-wise like the
+  // registrar site: left = ภาค/ปี, สาขา, Minor, ตรวจสอบคุณวุฒิ;
+  // right = คณะ, Major/Elective, status, หน่วยกิตเทียบโอน.
   info: [
-    { label: "หลักสูตร", value: "วิทยาการคอมพิวเตอร์ (Computer Science)" },
-    { label: "คณะ", value: "คณะเทคโนโลยีสารสนเทศและนวัตกรรม" },
-    { label: "ชั้นปี", value: "3" },
-    { label: "สถานภาพนักศึกษา", value: "ปกติ" },
-    { label: "อาจารย์ที่ปรึกษา", value: "ผศ.ดร. วิชัย เก่งกาจ" },
-    { label: "เทียบโอน", value: "-" },
+    { label: "ภาค/ปี เข้าการศึกษา", value: "1/2567" },
+    { label: "คณะ", value: "เทคโนโลยีสารสนเทศและนวัตกรรม" },
+    { label: "สาขา", value: "วิทยาการคอมพิวเตอร์" },
+    { label: "Major/Elective", value: "วิทยาการคอมพิวเตอร์" },
+    { label: "Minor", value: "-" },
+    { label: "status", value: "ปกติ" },
+    { label: "ตรวจสอบคุณวุฒิ", value: "ผ่าน" },
+    { label: "หน่วยกิตเทียบโอน", value: "0" },
   ],
 };
 
@@ -222,7 +227,27 @@ const [existing] = await connection.execute(
 );
 
 if (existing.length > 0) {
-  console.log(`Student "${STUDENT.username}" already exists — skipping student seed.`);
+  // Refresh the profile fields so edits to STUDENT above reach an existing
+  // database; the checklist (categories/courses) is left untouched.
+  await connection.execute(
+    `UPDATE students
+       SET name_th = ?, name_en = ?, student_id = ?, photo = ?, gpa = ?,
+           total_credits = ?, credits_earned = ?, credits_transferred = ?, info = ?
+     WHERE username = ?`,
+    [
+      STUDENT.nameTh,
+      STUDENT.nameEn,
+      STUDENT.studentId,
+      STUDENT.photo,
+      STUDENT.gpa,
+      STUDENT.totalCredits,
+      STUDENT.creditsEarned,
+      STUDENT.creditsTransferred,
+      JSON.stringify(STUDENT.info),
+      STUDENT.username,
+    ]
+  );
+  console.log(`Student "${STUDENT.username}" already exists — refreshed profile fields.`);
 } else {
   const [res] = await connection.execute(
     `INSERT INTO students

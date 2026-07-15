@@ -41,18 +41,11 @@ export default async function DashboardPage() {
   );
 }
 
-// Info entries surfaced as chips on the hero (and therefore dropped from the
-// detail grid below it).
-const CHIP_INFO = ["ชั้นปี", "สถานภาพนักศึกษา"];
-
 function ChecklistView({ checklist }: { checklist: Checklist }) {
   const { student, categories } = checklist;
   const earned = Number(student.creditsEarned) || 0;
   const total = Number(student.totalCredits) || 0;
   const pct = total > 0 ? Math.min(100, Math.round((earned / total) * 100)) : 0;
-
-  const year = student.info.find((i) => i.label === "ชั้นปี")?.value;
-  const status = student.info.find((i) => i.label === "สถานภาพนักศึกษา")?.value;
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -64,40 +57,45 @@ function ChecklistView({ checklist }: { checklist: Checklist }) {
         </h1>
       </div>
 
-      {/* Student profile card — decorative cover with the avatar overlapping it */}
+      {/* Student profile card — blurred image cover inset from the card edges,
+          avatar overlapping it */}
       <section className="overflow-hidden rounded-3xl bg-white shadow-sm">
-        <div
-          className="h-24 sm:h-32"
-          style={{
-            background:
-              "radial-gradient(90% 160% at 85% 0%, #d9d4f0 0%, rgba(217,212,240,0) 55%)," +
-              "radial-gradient(70% 130% at 12% 100%, #d7dbe0 0%, rgba(215,219,224,0) 60%)," +
-              "linear-gradient(120deg, #f3f3f5 0%, #e9e9ee 55%, #e0e0e8 100%)",
-          }}
-          aria-hidden="true"
-        />
-        <div className="px-4 pb-5 sm:px-6 sm:pb-6">
+        <div className="px-2.5 pt-2.5 sm:px-3 sm:pt-3">
+          <div className="relative h-24 overflow-hidden rounded-2xl sm:h-32" aria-hidden="true">
+            {/* Scaled up so the blur doesn't reveal transparent edges */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/wavy-black-white-background.jpg"
+              alt=""
+              className="absolute inset-0 h-full w-full scale-110 object-cover blur-sm"
+            />
+          </div>
+        </div>
+        {/* relative + z-10 keeps the avatar painting above the cover's
+            absolutely-positioned image where they overlap */}
+        <div className="relative z-10 px-4 pb-5 sm:px-6 sm:pb-6">
           <div className="-mt-8 flex items-end justify-between gap-4 sm:-mt-10">
-            {student.photo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={student.photo}
-                alt={student.nameEn || student.nameTh}
-                className="h-16 w-16 shrink-0 rounded-2xl object-cover shadow-md ring-4 ring-white sm:h-20 sm:w-20"
-              />
-            ) : (
-              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gray-100 shadow-md ring-4 ring-white sm:h-20 sm:w-20">
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="text-gray-400">
-                  <path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4 0-7 2-7 4.5V20h14v-1.5C19 16 16 14 12 14z" />
-                </svg>
-              </span>
-            )}
-            <div className="pb-0.5 text-right">
-              <p className="text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl">
-                {student.gpa || "—"}
-              </p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-gray-400">GPA</p>
+            <div className="ml-4 sm:ml-8">
+              {student.photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={student.photo}
+                  alt={student.nameEn || student.nameTh}
+                  className="h-16 w-16 shrink-0 rounded-full object-cover shadow-md ring-4 ring-white sm:h-20 sm:w-20"
+                />
+              ) : (
+                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gray-100 shadow-md ring-4 ring-white sm:h-20 sm:w-20">
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="text-gray-400">
+                    <path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4 0-7 2-7 4.5V20h14v-1.5C19 16 16 14 12 14z" />
+                  </svg>
+                </span>
+              )}
             </div>
+            {/* GPA badge, top right of the profile section */}
+            <span className="mb-1 flex items-baseline gap-1.5 rounded-full bg-gray-900 px-3.5 py-1.5 text-white shadow-md">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">GPA</span>
+              <span className="text-sm font-bold">{student.gpa || "—"}</span>
+            </span>
           </div>
 
           <h2 className="mt-3 truncate text-lg font-semibold text-gray-900 sm:text-2xl">
@@ -106,55 +104,41 @@ function ChecklistView({ checklist }: { checklist: Checklist }) {
           {student.nameEn ? (
             <p className="truncate text-sm text-gray-500">{student.nameEn}</p>
           ) : null}
+          {/* Student id, under the name */}
+          <p className="mt-1 font-mono text-sm text-gray-500">{student.studentId}</p>
 
-          {/* Meta chips */}
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <span className="rounded-full bg-gray-100 px-2.5 py-1 font-mono text-xs font-medium text-gray-700">
-              {student.studentId}
-            </span>
-            {year ? (
-              <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
-                ชั้นปี {year}
-              </span>
-            ) : null}
-            {status ? (
-              <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
-                {status}
-              </span>
-            ) : null}
-          </div>
-
-          {/* Overall progress */}
+          {/* Overall progress — sits above the details list */}
           <div className="mt-5 rounded-2xl bg-gray-50 p-4">
             <div className="mb-2 flex items-baseline justify-between text-sm">
               <span className="font-semibold text-gray-800">Credits earned</span>
               <span className="text-gray-500">
                 <span className="font-semibold text-gray-900">{earned}</span> / {total}
-                <span className="ml-2 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">
+                <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
                   {pct}%
                 </span>
               </span>
             </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-200/80">
               <div
-                className="h-full rounded-full bg-gray-900 transition-[width] duration-500"
+                className="h-full rounded-full bg-blue-600 transition-[width] duration-500"
                 style={{ width: `${pct}%` }}
               />
             </div>
           </div>
 
-          {/* Info grid */}
-          <dl className="mt-4 grid grid-cols-1 gap-x-10 gap-y-2.5 text-sm sm:grid-cols-2">
+          {/* Academic details — plain registrar-style table: label left,
+              value right, no box around it. */}
+          <dl className="mt-5 grid grid-cols-1 gap-x-10 gap-y-3 text-sm sm:grid-cols-2">
             {student.info
-              .filter((item) => !HIDDEN_INFO.includes(item.label) && !CHIP_INFO.includes(item.label))
+              .filter((item) => !HIDDEN_INFO.includes(item.label))
               .map((item, i) => (
               <div key={i} className="flex items-baseline justify-between gap-4">
                 <dt className="shrink-0 text-gray-500">{item.label}</dt>
-                <dd className="text-right font-medium text-gray-800">{item.value || "—"}</dd>
+                <dd className="text-right font-semibold text-gray-900">{item.value || "—"}</dd>
               </div>
             ))}
           </dl>
+
         </div>
       </section>
 
