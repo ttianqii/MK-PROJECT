@@ -1,10 +1,13 @@
 "use client";
 
-// A real draggable bottom sheet with snap detents. Drag the grab handle to
-// resize; on release it snaps to the nearest detent (given in vh), and
-// dragging/flicking down past the smallest detent dismisses it. The header is
-// fixed (and part of the drag area); children scroll inside.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+// A real draggable bottom sheet with snap detents that works across mobile
+// browsers (incl. iOS Safari). Rather than setPointerCapture — which iOS
+// Safari drops when the sheet is a transformed / scrolling container — the
+// drag is tracked with window-level pointer listeners that stay subscribed for
+// the whole gesture and clean up on pointerup / pointercancel. Drag the handle
+// to resize; on release the sheet snaps to the nearest detent (in vh), and
+// dragging down past the smallest detent dismisses it.
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 export default function BottomSheet({
   open,
@@ -23,17 +26,34 @@ export default function BottomSheet({
   initial?: number; // detent to open at
   ariaLabel?: string;
 }) {
-  const [vh, setVh] = useState(initial);
+  const [vh, setVhState] = useState(initial);
   const [dragging, setDragging] = useState(false);
-  const drag = useRef<{ y: number; vh: number } | null>(null);
+  const vhRef = useRef(vh);
+  const startRef = useRef<{ y: number; vh: number } | null>(null);
+  // Keep the latest callback / detents in refs so the drag effect can stay
+  // subscribed for the whole gesture instead of tearing down on each parent
+  // re-render (the parent passes a fresh detents array every render).
+  const onCloseRef = useRef(onClose);
+  const detentsRef = useRef(detents);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    detentsRef.current = detents;
+  });
+
+  const setVh = useCallback((v: number) => {
+    const clamped = Math.max(0, Math.min(92, v));
+    vhRef.current = clamped;
+    setVhState(clamped);
+  }, []);
 
   // Snap back to the opening detent each time the sheet opens.
   useEffect(() => {
     if (!open) return;
-    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVh(initial);
-  }, [open, initial]);
+  }, [open, initial, setVh]);
 
+  // Escape closes.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -43,32 +63,37 @@ export default function BottomSheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const snaps = [0, ...detents];
+  // While dragging, track the pointer on the window and snap on release.
+  useEffect(() => {
+    if (!dragging) return;
+    const move = (e: PointerEvent) => {
+      const s = startRef.current;
+      if (!s) return;
+      const dy = ((e.clientY - s.y) / window.innerHeight) * 100;
+      setVh(s.vh - dy); // dragging up (dy < 0) grows the sheet
+    };
+    const end = () => {
+      startRef.current = null;
+      setDragging(false);
+      const snaps = [0, ...detentsRef.current];
+      const cur = vhRef.current;
+      const nearest = snaps.reduce((a, b) => (Math.abs(b - cur) < Math.abs(a - cur) ? b : a));
+      if (nearest === 0) onCloseRef.current();
+      else setVh(nearest);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+    };
+  }, [dragging, setVh]);
 
-  const onDown = (e: React.PointerEvent) => {
-    drag.current = { y: e.clientY, vh };
+  const onHandleDown = (e: React.PointerEvent) => {
+    startRef.current = { y: e.clientY, vh: vhRef.current };
     setDragging(true);
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-  const onMove = (e: React.PointerEvent) => {
-    if (!drag.current) return;
-    const dy = ((e.clientY - drag.current.y) / window.innerHeight) * 100;
-    // Dragging up (dy < 0) grows the sheet; down shrinks it.
-    setVh(Math.max(0, Math.min(92, drag.current.vh - dy)));
-  };
-  const onUp = (e: React.PointerEvent) => {
-    if (!drag.current) return;
-    drag.current = null;
-    setDragging(false);
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      /* already released */
-    }
-    // Snap to the nearest detent; the "closed" detent (0) dismisses.
-    const nearest = snaps.reduce((a, b) => (Math.abs(b - vh) < Math.abs(a - vh) ? b : a));
-    if (nearest === 0) onClose();
-    else setVh(nearest);
   };
 
   return (
@@ -88,19 +113,18 @@ export default function BottomSheet({
           dragging ? "" : "transition-[height,transform] duration-300 ease-out"
         } ${open ? "translate-y-0" : "translate-y-full"}`}
       >
-        {/* Grab handle + fixed header: the drag area */}
+        {/* Drag handle: a generous, scroll-proof touch target */}
         <div
-          onPointerDown={onDown}
-          onPointerMove={onMove}
-          onPointerUp={onUp}
-          className="shrink-0 cursor-ns-resize touch-none"
+          onPointerDown={onHandleDown}
+          role="separator"
+          aria-label="Drag to resize"
+          style={{ touchAction: "none" }}
+          className="flex shrink-0 cursor-ns-resize select-none justify-center pb-2 pt-3.5"
         >
-          <div className="flex justify-center pb-1 pt-3" role="separator" aria-label="Drag to resize">
-            <span className="h-1.5 w-10 rounded-full bg-gray-300" />
-          </div>
-          {header}
+          <span className="h-1.5 w-12 rounded-full bg-gray-300" />
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+        {header ? <div className="shrink-0">{header}</div> : null}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
       </div>
     </div>
   );
