@@ -98,7 +98,10 @@ export default function PlanView({
     const confirm = await Swal.fire({
       title: `Delete ${label}?`,
       text: "This removes the saved schedule from your plan.",
-      icon: "warning",
+      imageUrl: "/warning.gif",
+      imageWidth: 96,
+      imageHeight: 96,
+      imageAlt: "Warning",
       showCancelButton: true,
       confirmButtonColor: "#BE123C",
       confirmButtonText: "Delete",
@@ -122,7 +125,10 @@ export default function PlanView({
       await Swal.fire({
         title: "Registered!",
         text: `${label} was submitted as your registration.`,
-        icon: "success",
+        imageUrl: "/save.gif",
+        imageWidth: 96,
+        imageHeight: 96,
+        imageAlt: "Registered",
         timer: 1600,
         showConfirmButton: false,
       });
