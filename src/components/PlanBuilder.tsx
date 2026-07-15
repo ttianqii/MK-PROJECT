@@ -272,7 +272,6 @@ export default function PlanBuilder({
               const course = courseByCode.get(code);
               const chosenKey = chosen[code];
               const chosenSec = chosenKey ? byKey.get(chosenKey) : undefined;
-              const seats = chosenSec ? sectionSeats(chosenSec) : null;
               const sectionCount = course?.sections.length ?? 0;
               return (
                 <li
@@ -309,14 +308,11 @@ export default function PlanBuilder({
                         ) : null}
                       </p>
                       <p className="truncate text-xs text-gray-500">{course?.courseName ?? code}</p>
-                      {/* Subtitle: chosen section + seats (tap to change), or a prompt to choose */}
-                      {chosenSec && seats ? (
+                      {/* Subtitle: chosen section meeting (tap to change), or a prompt to choose */}
+                      {chosenSec ? (
                         <p className="mt-1 text-xs text-gray-400">
                           {meetingLabel(chosenSec)}
-                          <span className="ml-1 font-medium text-emerald-600">
-                            · {seats.available}/{seats.total} seats
-                          </span>
-                          <span className="ml-1 text-gray-400">· tap to change</span>
+                          <span className="ml-1 font-medium text-orange-500">· tap to change</span>
                         </p>
                       ) : (
                         <p className="mt-1 text-xs font-semibold text-amber-600">
