@@ -4,7 +4,6 @@
 // (timetable grid, seat chips, ♥, and REGISTER) — echoing the reference
 // mobile design.
 import { useState, type CSSProperties } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import type { PlanSection } from "@/lib/timetable";
@@ -12,6 +11,7 @@ import TimetableGrid from "./TimetableGrid";
 import EditableTitle from "./EditableTitle";
 import ScheduleCard from "./ScheduleCard";
 import PopUpAlert from "./PopUpAlert";
+import { clearPlanDraft } from "@/lib/planDraft";
 
 export interface PlanViewSchedule {
   id: number;
@@ -145,15 +145,20 @@ export default function PlanView({
       {/* Page title, matching the Registration Result heading style */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-light uppercase tracking-wide text-gray-900">Planner</h1>
-        <Link
-          href="/dashboard/plan/builder"
+        <button
+          type="button"
+          onClick={() => {
+            // Start a brand-new plan with an empty form (drop any leftover draft).
+            clearPlanDraft();
+            router.push("/dashboard/plan/builder");
+          }}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-gray-700"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
             <path d="M12 5v14M5 12h14" />
           </svg>
           เพิ่มตาราง
-        </Link>
+        </button>
       </div>
 
       <p className="mt-1 text-sm text-gray-400">อัปเดตเมื่อ {formatUpdated(updatedAt)} น.</p>

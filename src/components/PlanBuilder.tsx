@@ -19,8 +19,9 @@ import TimetableGrid from "./TimetableGrid";
 import EditableTitle from "./EditableTitle";
 import ScheduleCard from "./ScheduleCard";
 import { MeetingRows } from "./SubjectDetailCard";
+import { PLAN_DRAFT_KEY } from "@/lib/planDraft";
 
-const STORAGE_KEY = "sp:nextTermPlan";
+const STORAGE_KEY = PLAN_DRAFT_KEY;
 const DAY_ABBR: Record<string, string> = {
   Sunday: "SUN",
   Monday: "MON",
