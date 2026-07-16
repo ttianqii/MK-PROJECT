@@ -214,6 +214,13 @@ export default function PlanBuilder({
         PopUpAlert("บันทึกไม่สำเร็จ", data.message ?? "กรุณาลองใหม่อีกครั้ง", "error");
         return;
       }
+      // Clear the new-plan draft so the next "new plan" starts empty (edit
+      // mode never touches this draft).
+      if (!isEdit) {
+        localStorage.removeItem(STORAGE_KEY);
+        setSubjects([]);
+        setChosen({});
+      }
       PopUpAlert(
         "บันทึกแล้ว!",
         isEdit ? "อัปเดตตารางเรียนเรียบร้อย" : "เพิ่มลงใน My Plan เป็นตารางใหม่แล้ว",
